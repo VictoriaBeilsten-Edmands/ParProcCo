@@ -6,8 +6,17 @@ from job_scheduler import JobScheduler
 
 class JobController:
 
-    def __init__(self, working_directory, cluster_output_dir, project, priority, cpus=16, timeout=timedelta(minutes=2)):
-        """JobController can be used for cluster job submission"""
+    def __init__(self, working_directory, cluster_output_dir, project, priority, cpus=16, timeout=timedelta(hours=2)):
+        """
+        JobController is used to coordinate cluster job submissions with JobScheduler
+        Args:
+            working_directory (pathlib.Path or str): working directory
+            cluster_output_dir (pathlib.Path or str): cluster output directory
+            project (str): project name
+            priority (str): name of queue to submit to
+            cpus (int, optional): Number of CPUs to request. Defaults to 16.
+            timeout (int, optional): Timeout for cluster jobs in minutes. Defaults to 180 (2 hours).
+        """
 
         self.working_directory = Path(working_directory)
         self.cluster_output_dir = Path(cluster_output_dir)

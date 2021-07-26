@@ -81,21 +81,17 @@ class TestJobScheduler(unittest.TestCase):
             # run jobs
             with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q") as js:
 
-                try:
-                    js.job_history[js.batch_number] = {}
-                    js.job_completion_status = {str(input_path): False for input_path in input_paths}
-                    js.check_jobscript(jobscript)
-                    js.job_details = []
-                    js.log_path = None
+                js.job_history[js.batch_number] = {}
+                js.job_completion_status = {str(input_path): False for input_path in input_paths}
+                js.check_jobscript(jobscript)
+                js.job_details = []
+                js.log_path = None
 
-                    session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-                    js.run_jobs(session, jobscript, input_paths)
-                    js.wait_for_jobs(session)
-                    js.start_time = datetime.now()
-                    js.report_job_info()
-
-                finally:
-                    js.cleanup()
+                session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
+                js.run_jobs(session, jobscript, input_paths)
+                js.wait_for_jobs(session)
+                js.start_time = datetime.now()
+                js.report_job_info()
 
                 job_stats = js.job_completion_status
                 # check failure list

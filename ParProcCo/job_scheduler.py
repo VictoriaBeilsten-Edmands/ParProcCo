@@ -35,18 +35,14 @@ class TemporarilyLogToFile:
 
 class JobScheduler:
 
-    def __init__(self, working_directory, cluster_output_dir, project, priority, cpus=16, timeout=timedelta(minutes=2)):
+    def __init__(self, working_directory, cluster_output_dir, project, priority, cpus=16, timeout=timedelta(hours=2)):
         """
         JobScheduler can be used for cluster job submissions
-
-        Good drmaa2 documentation:
-        https://www.drmaa.org/drmaav2-ogf33.pdf
-        https://www.ogf.org/documents/GFD.230.pdf
-
         Args:
-            project (str): project name
             working_directory (pathlib.Path or str): working directory
             cluster_output_dir (pathlib.Path or str): cluster output directory
+            project (str): project name
+            priority (str): name of queue to submit to
             cpus (int, optional): Number of CPUs to request. Defaults to 16.
             timeout (int, optional): Timeout for cluster jobs in minutes. Defaults to 180 (2 hours).
         """
@@ -68,7 +64,7 @@ class JobScheduler:
         return self
 
     def __exit__(self, *exc):
-        self.cleanup()
+        pass
 
     def check_queue_list(self, priority):
         if priority is None:
@@ -124,12 +120,9 @@ class JobScheduler:
         return False
 
     def run(self, jobscript, input_paths, log_path=None):
-        try:
-            self.job_history[self.batch_number] = {}
-            self.job_completion_status = {str(input_path): False for input_path in input_paths}
-            self.run_and_monitor(jobscript, input_paths, log_path)
-        finally:
-            self.cleanup()
+        self.job_history[self.batch_number] = {}
+        self.job_completion_status = {str(input_path): False for input_path in input_paths}
+        self.run_and_monitor(jobscript, input_paths, log_path)
 
     def run_and_monitor(self, jobscript, input_paths, log_path=None):
         self.check_jobscript(jobscript)
@@ -140,11 +133,6 @@ class JobScheduler:
         self.run_jobs(session, jobscript, input_paths)
         self.wait_for_jobs(session)
         self.report_job_info()
-
-    def cleanup(self):
-        for tmpdir in self.temporary_dirs:
-            tmpdir.cleanup()
-            self.temporary_dirs.remove(tmpdir)
 
     def run_jobs(self, session, jobscript, input_paths):
         logging.debug(f"Running job on cluster for {input_paths}")
