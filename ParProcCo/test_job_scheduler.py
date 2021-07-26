@@ -33,7 +33,6 @@ def setup_data_files(working_directory, cluster_output_dir):
 class TestJobScheduler(unittest.TestCase):
 
     def test_create_template_with_cluster_output_dir(self):
-        cluster_output_dir_exists = False
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             input_paths = Path('path/to/file.extension')
@@ -41,7 +40,7 @@ class TestJobScheduler(unittest.TestCase):
             with JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q") as js:
                 js.create_template(input_paths, "test.sh")
                 cluster_output_dir_exists = os.path.exists(cluster_output_dir)
-        self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created")
+        self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
     def test_job_scheduler_runs(self):
         # create directory for test files
@@ -76,7 +75,7 @@ class TestJobScheduler(unittest.TestCase):
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "test_script.sh")
 
-            input_paths, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
+            input_paths, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q") as js:
@@ -97,7 +96,7 @@ class TestJobScheduler(unittest.TestCase):
                 # check failure list
                 self.assertFalse(js.get_success(), msg=f"JobScheduler.success is not False\n")
                 self.assertFalse(any(job_stats.values()), msg=f"All jobs not failed:"
-                                 f"{js.job_completion_status.values()}")
+                                 f"{js.job_completion_status.values()}\n")
                 self.assertEqual(len(job_stats), 4,
                                  msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
 
@@ -173,14 +172,14 @@ class TestJobScheduler(unittest.TestCase):
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "test_sleeper_script.sh")
 
-            input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
+            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
                               timeout=timedelta(seconds=1)) as js:
                 js.run(jobscript, input_files)
                 jh = js.job_history
-                self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}")
+                self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
                 returned_jobs = jh[0]
                 self.assertEqual(len(returned_jobs), 4)
                 for job_id in returned_jobs:
@@ -194,7 +193,7 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
+            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "bad_jobscript_name.sh")
 
@@ -209,7 +208,7 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
+            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "test_bad_permissions.sh")
 

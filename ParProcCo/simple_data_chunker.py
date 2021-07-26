@@ -16,7 +16,7 @@ class SimpleDataChunker:
         total_lines = len(lines)
         if total_lines < self.total_chunks:
             raise ValueError(f"Number of requested chunks ({self.total_chunks}) is more than lines in file"
-                             f" ({total_lines})")
+                             f" ({total_lines})\n")
         lines_per_chunk = total_lines // self.total_chunks
         remainder = total_lines % self.total_chunks
         line_chunk_totals = [(lines_per_chunk + 1) if j <
@@ -24,7 +24,7 @@ class SimpleDataChunker:
 
         current_chunk = 0
         counter = 0
-        for i, line in enumerate(lines):
+        for line in lines:
             if counter == line_chunk_totals[current_chunk]:
                 current_chunk += 1
                 counter = 0

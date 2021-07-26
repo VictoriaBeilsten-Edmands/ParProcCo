@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 from pathlib import Path
 from job_scheduler import JobScheduler
@@ -25,27 +24,28 @@ class JobController:
         self.cpus = cpus
         self.timeout = timeout
         self.scheduler = None
+        self.data_chunker = None
 
     def run(self, data_chunker_class, data_chunker_args, data_to_split, processing_script):
-        # split data
-        data_chunker = data_chunker_class(*data_chunker_args)
-        input_paths = data_chunker.chunk(self.working_directory, data_to_split)
+        self.data_chunker = data_chunker_class(*data_chunker_args)
+        input_paths = self.data_chunker.chunk(self.working_directory, data_to_split)
 
-        # run jobs
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.priority,
                                       self.cpus, self.timeout)
         self.scheduler.run(processing_script, input_paths, log_path=None)
 
-        # rerun any killed jobs
         self.rerun_killed_jobs(processing_script)
+        aggregated_data_path = self.aggregate_data()
+        return aggregated_data_path
 
-        # check all jobs completed successfully and run aggregation
+    def aggregate_data(self):
         if self.scheduler.get_success():
             chunked_results = self.scheduler.get_output_paths()
-            aggregated_data_path = data_chunker.aggregate(self.cluster_output_dir, chunked_results)
+            aggregated_data_path = self.data_chunker.aggregate(self.cluster_output_dir, chunked_results)
+            print(f"Processing complete. Aggregated results: {aggregated_data_path}\n")
             return aggregated_data_path
         else:
-            raise RuntimeError(f"All jobs were not successful. Aggregation not performed\n")
+            raise RuntimeError(f"Not all jobs were successful. Aggregation not performed\n")
 
     def rerun_killed_jobs(self, processing_script):
         if not self.scheduler.get_success():

@@ -54,7 +54,6 @@ class JobScheduler:
         self.timeout = timeout
         self.logger = logging.getLogger()
         self.batch_number = 0
-        self.temporary_dirs = []
         self.output_paths = []
         self.start_time = datetime.now()
         self.job_history = {}
@@ -151,7 +150,7 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def create_template(self, input_path, jobscript, job_name="job_scheduler_testing", h_rt="24:00:00"):
+    def create_template(self, input_path, jobscript, job_name="job_scheduler_testing"):
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
@@ -207,7 +206,6 @@ class JobScheduler:
                 logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
 
     def report_job_info(self):
-        logger = logging.getLogger()
         # Iterate through jobs with logging to check individual job outcomes
         for job, filename, output in self.job_details:
             with TemporarilyLogToFile(self.logger, self.log_path):
@@ -279,13 +277,3 @@ class JobScheduler:
         self.batch_number += 1
         self.job_history[self.batch_number] = {}
         self.run(jobscript, jobs)
-
-
-if __name__ == '__main__':
-    '''
-    Change to the working directory with the jobscript
-    $ python src/job_scheduler.py /path/to/working_directory /path/to/cluster_output_dir project priority
-     jobscript input_files...
-    '''
-    inputs = [Path(argv) for argv in sys.argv[6:]]
-    JobScheduler(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]).run(sys.argv[5], inputs)

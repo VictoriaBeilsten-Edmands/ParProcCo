@@ -5,21 +5,22 @@ import unittest
 from simple_data_chunker import SimpleDataChunker
 
 
-class TestDataChunker(unittest.TestCase):
+def setup_data_file(working_directory):
+    # create test files
+    file_name = "test_raw_data.txt"
+    input_file_path = Path(working_directory) / file_name
+    f = open(input_file_path, "w")
+    f.write("3\n4\n11\n30\n")
+    f.close()
+    return input_file_path
 
-    def setup_data_file(self, working_directory):
-        # create test files
-        file_name = "test_raw_data.txt"
-        input_file_path = Path(working_directory) / file_name
-        f = open(input_file_path, "w")
-        f.write("3\n4\n11\n30\n")
-        f.close()
-        return input_file_path
+
+class TestDataChunker(unittest.TestCase):
 
     def test_chunk_data(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
-            input_file_path = self.setup_data_file(working_directory)
+            input_file_path = setup_data_file(working_directory)
 
             chunker = SimpleDataChunker(4)
             chunked_data_files = chunker.chunk(working_directory, input_file_path)
@@ -42,7 +43,7 @@ class TestDataChunker(unittest.TestCase):
             if not cluster_output_dir.exists():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
 
-            input_file_path = self.setup_data_file(working_directory)
+            input_file_path = setup_data_file(working_directory)
 
             chunker = SimpleDataChunker(4)
             chunked_data_files = chunker.chunk(working_directory, input_file_path)

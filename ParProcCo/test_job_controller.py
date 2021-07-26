@@ -8,16 +8,17 @@ from job_controller import JobController
 from simple_data_chunker import SimpleDataChunker
 
 
-class TestJobController(unittest.TestCase):
+def setup_data_file(working_directory):
+    # create test files
+    file_name = "test_raw_data.txt"
+    input_file_path = Path(working_directory) / file_name
+    f = open(input_file_path, "w")
+    f.write("3\n4\n11\n30\n")
+    f.close()
+    return input_file_path
 
-    def setup_data_file(self, working_directory):
-        # create test files
-        file_name = "test_raw_data.txt"
-        input_file_path = Path(working_directory) / file_name
-        f = open(input_file_path, "w")
-        f.write("3\n4\n11\n30\n")
-        f.close()
-        return input_file_path
+
+class TestJobController(unittest.TestCase):
 
     def test_end_to_end(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -26,7 +27,7 @@ class TestJobController(unittest.TestCase):
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "test_script.sh")
 
-            input_file_path = self.setup_data_file(working_directory)
+            input_file_path = setup_data_file(working_directory)
 
             jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q")
             agg_data_path = jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
@@ -45,12 +46,12 @@ class TestJobController(unittest.TestCase):
             script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
             jobscript = os.path.join(script_dir, "test_sleeper_script.sh")
 
-            input_file_path = self.setup_data_file(working_directory)
+            input_file_path = setup_data_file(working_directory)
 
             jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
-                agg_data_path = jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
+                jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
 
