@@ -58,12 +58,6 @@ class JobScheduler:
         self.job_history = {}
         self.job_completion_status = {}
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
-
     def check_queue_list(self, priority):
         if priority == "" or priority is None:
             raise ValueError(f"priority is empty")

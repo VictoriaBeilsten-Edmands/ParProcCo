@@ -36,9 +36,9 @@ class TestJobScheduler(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
-            with JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q") as js:
-                js.create_template(input_paths, "test.sh")
-                cluster_output_dir_exists = os.path.exists(cluster_output_dir)
+            js = JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q")
+            js.create_template(input_paths, "test.sh")
+            cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
     def test_job_scheduler_runs(self):
@@ -52,18 +52,18 @@ class TestJobScheduler(unittest.TestCase):
             input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
-            with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q") as js:
-                js.run(jobscript, input_files)
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.run(jobscript, input_files)
 
-                # check output files
-                for out_file, num in zip(output_files, input_nums):
-                    expected_num = str(int(num) * 2)
+            # check output files
+            for out_file, num in zip(output_files, input_nums):
+                expected_num = str(int(num) * 2)
 
-                    with open(out_file, "r") as f:
-                        file_content = f.read()
+                with open(out_file, "r") as f:
+                    file_content = f.read()
 
-                    self.assertTrue(os.path.exists(out_file), msg=f"Output file {out_file} was not created\n")
-                    self.assertEqual(expected_num, file_content, msg=f"Output file {out_file} content was incorrect\n")
+                self.assertTrue(os.path.exists(out_file), msg=f"Output file {out_file} was not created\n")
+                self.assertEqual(expected_num, file_content, msg=f"Output file {out_file} content was incorrect\n")
 
     def test_old_output_timestamps(self):
         # create directory for test files
@@ -76,27 +76,27 @@ class TestJobScheduler(unittest.TestCase):
             input_paths, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
-            with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q") as js:
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
-                js.job_history[js.batch_number] = {}
-                js.job_completion_status = {str(input_path): False for input_path in input_paths}
-                js.check_jobscript(jobscript)
-                js.job_details = []
-                js.log_path = None
+            js.job_history[js.batch_number] = {}
+            js.job_completion_status = {str(input_path): False for input_path in input_paths}
+            js.check_jobscript(jobscript)
+            js.job_details = []
+            js.log_path = None
 
-                session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-                js.run_jobs(session, jobscript, input_paths)
-                js.wait_for_jobs(session)
-                js.start_time = datetime.now()
-                js.report_job_info()
+            session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
+            js.run_jobs(session, jobscript, input_paths)
+            js.wait_for_jobs(session)
+            js.start_time = datetime.now()
+            js.report_job_info()
 
-                job_stats = js.job_completion_status
-                # check failure list
-                self.assertFalse(js.get_success(), msg=f"JobScheduler.success is not False\n")
-                self.assertFalse(any(job_stats.values()), msg=f"All jobs not failed:"
-                                 f"{js.job_completion_status.values()}\n")
-                self.assertEqual(len(job_stats), 4,
-                                 msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
+            job_stats = js.job_completion_status
+            # check failure list
+            self.assertFalse(js.get_success(), msg=f"JobScheduler.success is not False\n")
+            self.assertFalse(any(job_stats.values()), msg=f"All jobs not failed:"
+                             f"{js.job_completion_status.values()}\n")
+            self.assertEqual(len(job_stats), 4,
+                             msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
 
     def test_get_all_queues(self):
         with os.popen('qconf -sql') as q_proc:
@@ -172,17 +172,17 @@ class TestJobScheduler(unittest.TestCase):
             input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
-            with JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
-                              timeout=timedelta(seconds=1)) as js:
-                js.run(jobscript, input_files)
-                jh = js.job_history
-                self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
-                returned_jobs = jh[0]
-                self.assertEqual(len(returned_jobs), 4)
-                for job_id in returned_jobs:
-                    self.assertEqual(returned_jobs[job_id]["exit_stat"], 137)
-                    self.assertEqual(returned_jobs[job_id]["term_sig"], "SIGKILL")
-                    self.assertEqual(returned_jobs[job_id]["j_state"], "FAILED")
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
+                              timeout=timedelta(seconds=1))
+            js.run(jobscript, input_files)
+            jh = js.job_history
+            self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
+            returned_jobs = jh[0]
+            self.assertEqual(len(returned_jobs), 4)
+            for job_id in returned_jobs:
+                self.assertEqual(returned_jobs[job_id]["exit_stat"], 137)
+                self.assertEqual(returned_jobs[job_id]["term_sig"], "SIGKILL")
+                self.assertEqual(returned_jobs[job_id]["j_state"], "FAILED")
 
     def test_bad_jobscript_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
