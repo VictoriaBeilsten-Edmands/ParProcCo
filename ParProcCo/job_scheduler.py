@@ -62,15 +62,14 @@ class JobScheduler:
         return self
 
     def __exit__(self, *exc):
-        pass
+        return False
 
     def check_queue_list(self, priority):
         if priority == "" or priority is None:
             raise ValueError(f"priority is empty")
         priority = priority.lower()
-        q_proc = os.popen('qconf -sql')
-        q_name_list = q_proc.read().split()
-        q_proc.close()
+        with os.popen('qconf -sql') as q_proc:
+            q_name_list = q_proc.read().split()
         if priority in q_name_list:
             return priority
         else:
@@ -79,9 +78,8 @@ class JobScheduler:
     def check_project_list(self, project):
         if project == "" or project is None:
             raise ValueError(f"project is empty")
-        prj_proc = os.popen('qconf -sprjl')
-        prj_name_list = prj_proc.read().split()
-        prj_proc.close()
+        with os.popen('qconf -sprjl') as prj_proc:
+            prj_name_list = prj_proc.read().split()
         if project in prj_name_list:
             return project
         else:

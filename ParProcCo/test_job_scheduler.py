@@ -23,9 +23,8 @@ def setup_data_files(working_directory, cluster_output_dir):
         input_num = str(i**3+3)
         input_nums.append(input_num)
 
-        f = open(input_file_path, "w")
-        f.write(input_num)
-        f.close()
+        with open(input_file_path, "w") as f:
+            f.write(input_num)
 
     return input_files, output_files, input_nums
 
@@ -60,9 +59,8 @@ class TestJobScheduler(unittest.TestCase):
                 for out_file, num in zip(output_files, input_nums):
                     expected_num = str(int(num) * 2)
 
-                    f = open(out_file, "r")
-                    file_content = f.read()
-                    f.close()
+                    with open(out_file, "r") as f:
+                        file_content = f.read()
 
                     self.assertTrue(os.path.exists(out_file), msg=f"Output file {out_file} was not created\n")
                     self.assertEqual(expected_num, file_content, msg=f"Output file {out_file} content was incorrect\n")
@@ -101,9 +99,8 @@ class TestJobScheduler(unittest.TestCase):
                                  msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
 
     def test_get_all_queues(self):
-        q_proc = os.popen('qconf -sql')
-        q_name_list = q_proc.read().split()
-        q_proc.close()
+        with os.popen('qconf -sql') as q_proc:
+            q_name_list = q_proc.read().split()
         ms = drmaa2.MonitoringSession('ms-01')
         qi_list = ms.get_all_queues(q_name_list)
         self.assertEqual(len(qi_list), len(q_name_list))

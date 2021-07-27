@@ -11,34 +11,32 @@ class SimpleDataChunker:
 
     def chunk(self, working_directory, input_data_file):
         chunked_data_files = []
-        f = open(input_data_file)
-        lines = f.readlines()
-        total_lines = len(lines)
-        if total_lines < self.total_chunks:
-            raise ValueError(f"Number of requested chunks ({self.total_chunks}) is more than lines in file"
-                             f" ({total_lines})\n")
-        lines_per_chunk = total_lines // self.total_chunks
-        remainder = total_lines % self.total_chunks
-        line_chunk_totals = [(lines_per_chunk + 1) if j <
-                             remainder else lines_per_chunk for j in range(self.total_chunks)]
+        with open(input_data_file) as f:
+            lines = f.readlines()
+            total_lines = len(lines)
+            if total_lines < self.total_chunks:
+                raise ValueError(f"Number of requested chunks ({self.total_chunks}) is more than lines in file"
+                                 f" ({total_lines})\n")
+            lines_per_chunk = total_lines // self.total_chunks
+            remainder = total_lines % self.total_chunks
+            line_chunk_totals = [(lines_per_chunk + 1) if j <
+                                 remainder else lines_per_chunk for j in range(self.total_chunks)]
 
-        current_chunk = 0
-        counter = 0
-        for line in lines:
-            if counter == line_chunk_totals[current_chunk]:
-                current_chunk += 1
-                counter = 0
+            current_chunk = 0
+            counter = 0
+            for line in lines:
+                if counter == line_chunk_totals[current_chunk]:
+                    current_chunk += 1
+                    counter = 0
 
-            chunked_file_name = f"chunked_data_{current_chunk}.txt"
-            chunked_file_path = Path(working_directory) / chunked_file_name
+                chunked_file_name = f"chunked_data_{current_chunk}.txt"
+                chunked_file_path = Path(working_directory) / chunked_file_name
 
-            sf = open(chunked_file_path, "w")
-            sf.write(line)
-            sf.close()
+                with open(chunked_file_path, "w") as sf:
+                    sf.write(line)
 
-            chunked_data_files.append(chunked_file_path)
-            counter += 1
-        f.close()
+                chunked_data_files.append(chunked_file_path)
+                counter += 1
 
         return chunked_data_files
 
@@ -47,13 +45,11 @@ class SimpleDataChunker:
 
         total = 0
         for output_file in output_data_files:
-            f = open(output_file)
-            for line in f.readlines():
-                total += int(line.strip())
-            f.close()
+            with open(output_file) as f:
+                for line in f.readlines():
+                    total += int(line.strip())
 
-        af = open(aggregated_data_file, "w")
-        af.write(str(total))
-        af.close()
+        with open(aggregated_data_file, "w") as af:
+            af.write(str(total))
 
         return aggregated_data_file

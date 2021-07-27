@@ -12,9 +12,8 @@ def setup_data_file(working_directory):
     # create test files
     file_name = "test_raw_data.txt"
     input_file_path = Path(working_directory) / file_name
-    f = open(input_file_path, "w")
-    f.write("3\n4\n11\n30\n")
-    f.close()
+    with open(input_file_path, "w") as f:
+        f.write("3\n4\n11\n30\n")
     return input_file_path
 
 
@@ -33,9 +32,8 @@ class TestJobController(unittest.TestCase):
             agg_data_path = jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
 
             self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
-            af = open(agg_data_path, "r")
-            agg_data = af.readlines()
-            af.close()
+            with open(agg_data_path, "r") as af:
+                agg_data = af.readlines()
 
             self.assertEqual(agg_data, ["96"])
 
