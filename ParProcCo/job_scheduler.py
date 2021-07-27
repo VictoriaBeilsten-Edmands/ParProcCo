@@ -1,7 +1,6 @@
 import logging
 import os
 import stat
-import sys
 from pathlib import Path
 from datetime import timedelta
 from datetime import datetime
@@ -66,10 +65,8 @@ class JobScheduler:
         pass
 
     def check_queue_list(self, priority):
-        if priority is None:
-            raise ValueError(f"ValueError. priority is {priority}")
-        elif priority == "":
-            raise ValueError(f"ValueError. priority is empty string")
+        if priority == "" or priority is None:
+            raise ValueError(f"priority is empty")
         priority = priority.lower()
         q_proc = os.popen('qconf -sql')
         q_name_list = q_proc.read().split()
@@ -77,26 +74,24 @@ class JobScheduler:
         if priority in q_name_list:
             return priority
         else:
-            raise ValueError(f"ValueError. priority {priority} not in queue list: {q_name_list}\n")
+            raise ValueError(f"priority {priority} not in queue list: {q_name_list}\n")
 
     def check_project_list(self, project):
-        if project is None:
-            raise ValueError(f"ValueError. project is {project}")
-        elif project == "":
-            raise ValueError(f"ValueError. project is empty string")
+        if project == "" or project is None:
+            raise ValueError(f"project is empty")
         prj_proc = os.popen('qconf -sprjl')
         prj_name_list = prj_proc.read().split()
         prj_proc.close()
         if project in prj_name_list:
             return project
         else:
-            raise ValueError(f"ValueError. {project} not in list of project names: {prj_name_list}\n")
+            raise ValueError(f"{project} not in list of project names: {prj_name_list}\n")
 
     def check_jobscript(self, jobscript):
         if not Path(jobscript).exists():
-            raise FileNotFoundError(f"FileNotFoundError. {jobscript} does not exist\n")
+            raise FileNotFoundError(f"{jobscript} does not exist\n")
         elif not bool(os.stat(jobscript).st_mode & stat.S_IXUSR):
-            raise PermissionError(f"PermissionError. {jobscript} is not executable by user\n")
+            raise PermissionError(f"{jobscript} is not executable by user\n")
         else:
             return jobscript
 
