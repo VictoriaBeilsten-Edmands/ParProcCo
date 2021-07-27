@@ -59,8 +59,8 @@ class JobScheduler:
         self.job_completion_status = {}
 
     def check_queue_list(self, priority):
-        if priority == "" or priority is None:
-            raise ValueError(f"priority is empty")
+        if not priority:
+            raise ValueError(f"priority must be non-empty string")
         priority = priority.lower()
         with os.popen('qconf -sql') as q_proc:
             q_name_list = q_proc.read().split()
@@ -70,20 +70,20 @@ class JobScheduler:
             raise ValueError(f"priority {priority} not in queue list: {q_name_list}\n")
 
     def check_project_list(self, project):
-        if project == "" or project is None:
-            raise ValueError(f"project is empty")
+        if not project:
+            raise ValueError(f"project must be non-empty string")
         with os.popen('qconf -sprjl') as prj_proc:
             prj_name_list = prj_proc.read().split()
         if project in prj_name_list:
             return project
         else:
-            raise ValueError(f"{project} not in list of project names: {prj_name_list}\n")
+            raise ValueError(f"{project} must be in list of project names: {prj_name_list}\n")
 
     def check_jobscript(self, jobscript):
         if not Path(jobscript).exists():
             raise FileNotFoundError(f"{jobscript} does not exist\n")
         elif not bool(os.stat(jobscript).st_mode & stat.S_IXUSR):
-            raise PermissionError(f"{jobscript} is not executable by user\n")
+            raise PermissionError(f"{jobscript} must be executable by user\n")
         else:
             return jobscript
 
