@@ -115,7 +115,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, None, "medium.q")
-            self.assertTrue("project is empty" in str(context.exception))
+            self.assertTrue("project must be non-empty string" in str(context.exception))
 
     def test_project_is_empty(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -124,7 +124,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "", "medium.q")
-            self.assertTrue("project is empty" in str(context.exception))
+            self.assertTrue("project must be non-empty string" in str(context.exception))
 
     def test_bad_project_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -133,7 +133,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "bad_project_name", "medium.q")
-            self.assertTrue("bad_project_name not in list of project names" in str(context.exception))
+            self.assertTrue("bad_project_name must be in list of project names" in str(context.exception))
 
     def test_queue_is_none(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -142,7 +142,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "b24", None)
-            self.assertTrue("priority is empty" in str(context.exception))
+            self.assertTrue("priority must be non-empty string" in str(context.exception))
 
     def test_queue_is_empty(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -151,7 +151,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "b24", "")
-            self.assertTrue("priority is empty" in str(context.exception))
+            self.assertTrue("priority must be non-empty string" in str(context.exception))
 
     def test_bad_queue_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -180,9 +180,9 @@ class TestJobScheduler(unittest.TestCase):
             returned_jobs = jh[0]
             self.assertEqual(len(returned_jobs), 4)
             for job_id in returned_jobs:
-                self.assertEqual(returned_jobs[job_id]["exit_stat"], 137)
-                self.assertEqual(returned_jobs[job_id]["term_sig"], "SIGKILL")
-                self.assertEqual(returned_jobs[job_id]["j_state"], "FAILED")
+                self.assertEqual(returned_jobs[job_id]["info"].exit_status, 137)
+                self.assertEqual(returned_jobs[job_id]["info"].terminating_signal, "SIGKILL")
+                self.assertEqual(returned_jobs[job_id]["info"].job_state, "FAILED")
 
     def test_bad_jobscript_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
@@ -212,7 +212,7 @@ class TestJobScheduler(unittest.TestCase):
             with self.assertRaises(PermissionError) as context:
                 js.run(jobscript, input_files)
 
-            self.assertTrue(f"{jobscript} is not executable by user\n" in str(context.exception))
+            self.assertTrue(f"{jobscript} must be executable by user\n" in str(context.exception))
 
 
 if __name__ == '__main__':

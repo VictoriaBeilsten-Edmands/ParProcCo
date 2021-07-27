@@ -60,5 +60,5 @@ class JobController:
                 raise RuntimeError(f"All jobs failed\n")
 
     def filter_killed_jobs(self, jobs):
-        killed_jobs = [job_info for job_info in jobs if job_info["term_sig"] == "SIGKILL"]
+        killed_jobs = [job for job in jobs if job["info"].terminating_signal == "SIGKILL"]
         return killed_jobs

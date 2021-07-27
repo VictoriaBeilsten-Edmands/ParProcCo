@@ -200,9 +200,6 @@ class JobScheduler:
                 try:
                     js = job.get_state()[0]  # Returns job state and job substate (always seems to be None)
                     ji = job.get_info()
-                    exit_stat = ji.exit_status
-                    j_state = ji.job_state
-                    term_sig = ji.terminating_signal
 
                 except Exception:
                     logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
@@ -210,15 +207,13 @@ class JobScheduler:
 
                 # Check job states against expected possible options:
                 if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename,
                                                                    "final_state": "UNDETERMINED"}
                     logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
                 elif js == drmaa2.JobState.FAILED:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename, "final_state": "FAILED"}
                     logging.error(
                         f"drmaa job {job.id} processing file filename failed."
@@ -226,8 +221,7 @@ class JobScheduler:
                     )
 
                 elif not output.exists():
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename, "final_state": "NO_OUTPUT"}
                     logging.error(
                         f"drmaa job {job.id} processing file {filename} has not created output file {output}"
@@ -235,8 +229,7 @@ class JobScheduler:
                     )
 
                 elif not self.timestamp_ok(output):
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename,
                                                                    "final_state": "OLD_OUTPUT_FILE"}
                     logging.error(
@@ -246,16 +239,14 @@ class JobScheduler:
 
                 elif js == drmaa2.JobState.DONE:
                     self.job_completion_status[str(filename)] = True
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename, "final_state": "SUCCESS"}
                     logging.info(
                         f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
                         f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                     )
                 else:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "exit_stat": exit_stat,
-                                                                   "j_state": j_state, "term_sig": term_sig,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
                                                                    "input_path": filename, "final_state": "UNSPECIFIED"}
                     logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
 
