@@ -212,31 +212,29 @@ class JobScheduler:
                 logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
                 raise
 
+            self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename}
+
             # Check job states against expected possible options:
             if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "UNDETERMINED"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "UNDETERMINED"
                 logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
             elif js == drmaa2.JobState.FAILED:
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "FAILED"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "FAILED"
                 logging.error(
                     f"drmaa job {job.id} processing file filename failed."
                     f" Terminating signal: {ji.terminating_signal}."
                 )
 
             elif not output.exists():
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "NO_OUTPUT"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "NO_OUTPUT"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} has not created output file {output}"
                     f" Terminating signal: {ji.terminating_signal}."
                 )
 
             elif not self.timestamp_ok(output):
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "OLD_OUTPUT_FILE"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "OLD_OUTPUT_FILE"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} has not created a new output file {output}. "
                     f"Terminating signal: {ji.terminating_signal}."
@@ -244,15 +242,13 @@ class JobScheduler:
 
             elif js == drmaa2.JobState.DONE:
                 self.job_completion_status[str(filename)] = True
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "SUCCESS"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "SUCCESS"
                 logging.info(
                     f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
                     f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                 )
             else:
-                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                               "final_state": "UNSPECIFIED"}
+                self.job_history[self.batch_number][job.id]["final_state"] = "UNSPECIFIED"
                 logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
 
     def resubmit_jobs(self, jobscript, jobs):
