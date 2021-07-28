@@ -34,6 +34,24 @@ class TestDataChunker(unittest.TestCase):
 
             self.assertEqual(written_data, [["3\n"], ["4\n"], ["11\n"], ["30\n"]])
 
+    def test_too_many_chunks(self):
+        base_dir = '/dls/tmp/vaq49247/tests/'
+        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+            input_file_path = setup_data_file(working_directory)
+
+            chunker = SimpleDataChunker(7)
+            chunked_data_files = chunker.chunk(working_directory, input_file_path)
+
+            self.assertEqual(len(chunked_data_files), 4)
+
+            written_data = []
+            for data_file in chunked_data_files:
+                with open(data_file, "r") as f:
+                    lines = f.readlines()
+                    written_data.append(lines)
+
+            self.assertEqual(written_data, [["3\n"], ["4\n"], ["11\n"], ["30\n"]])
+
     def test_aggregate_data(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
