@@ -177,85 +177,83 @@ class JobScheduler:
         return jt
 
     def wait_for_jobs(self, session):
-        with TemporarilyLogToFile(self.logger, self.log_path):
-            try:
-                job_list = [job_info[0] for job_info in self.job_details]
-                # Wait for jobs to start (timeout shouldn't include queue time)
-                job_list_str = ", ".join([str(job.id) for job in job_list])
-                logging.info(f"Waiting for jobs to start: {job_list_str}")
-                session.wait_all_started(job_list)
-                logging.info(f"Jobs started, waiting for jobs: {job_list_str}")
-                session.wait_all_terminated(job_list, int(round(self.timeout.total_seconds())))
-                jobs_running = False
-                for job in job_list:
-                    if job.get_state()[0] == drmaa2.JobState.RUNNING:
-                        logging.info(f"Job {job.id} timed out. Terminating job now.")
-                        jobs_running = True
-                        job.terminate()
-                        print(f"terminating job {job.id}")
-                if jobs_running:
-                    # Termination takes some time, wait a max of 2 mins
-                    session.wait_all_terminated(job_list, 120)
-            except Drmaa2Exception:
-                logging.error(f"Drmaa exception", exc_info=True)
-            except Exception:
-                logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
+        try:
+            job_list = [job_info[0] for job_info in self.job_details]
+            # Wait for jobs to start (timeout shouldn't include queue time)
+            job_list_str = ", ".join([str(job.id) for job in job_list])
+            logging.info(f"Waiting for jobs to start: {job_list_str}")
+            session.wait_all_started(job_list)
+            logging.info(f"Jobs started, waiting for jobs: {job_list_str}")
+            session.wait_all_terminated(job_list, int(round(self.timeout.total_seconds())))
+            jobs_running = False
+            for job in job_list:
+                if job.get_state()[0] == drmaa2.JobState.RUNNING:
+                    logging.info(f"Job {job.id} timed out. Terminating job now.")
+                    jobs_running = True
+                    job.terminate()
+                    print(f"terminating job {job.id}")
+            if jobs_running:
+                # Termination takes some time, wait a max of 2 mins
+                session.wait_all_terminated(job_list, 120)
+        except Drmaa2Exception:
+            logging.error(f"Drmaa exception", exc_info=True)
+        except Exception:
+            logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
 
     def report_job_info(self):
         # Iterate through jobs with logging to check individual job outcomes
         for job, filename, output in self.job_details:
-            with TemporarilyLogToFile(self.logger, self.log_path):
-                logging.debug(f"Retrieving info for drmaa job {job.id} for file {filename}")
-                try:
-                    js = job.get_state()[0]  # Returns job state and job substate (always seems to be None)
-                    ji = job.get_info()
+            logging.debug(f"Retrieving info for drmaa job {job.id} for file {filename}")
+            try:
+                js = job.get_state()[0]  # Returns job state and job substate (always seems to be None)
+                ji = job.get_info()
 
-                except Exception:
-                    logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
-                    raise
+            except Exception:
+                logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
+                raise
 
-                # Check job states against expected possible options:
-                if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "UNDETERMINED"}
-                    logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
+            # Check job states against expected possible options:
+            if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "UNDETERMINED"}
+                logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
-                elif js == drmaa2.JobState.FAILED:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "FAILED"}
-                    logging.error(
-                        f"drmaa job {job.id} processing file filename failed."
-                        f" Terminating signal: {ji.terminating_signal}."
-                    )
+            elif js == drmaa2.JobState.FAILED:
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "FAILED"}
+                logging.error(
+                    f"drmaa job {job.id} processing file filename failed."
+                    f" Terminating signal: {ji.terminating_signal}."
+                )
 
-                elif not output.exists():
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "NO_OUTPUT"}
-                    logging.error(
-                        f"drmaa job {job.id} processing file {filename} has not created output file {output}"
-                        f" Terminating signal: {ji.terminating_signal}."
-                    )
+            elif not output.exists():
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "NO_OUTPUT"}
+                logging.error(
+                    f"drmaa job {job.id} processing file {filename} has not created output file {output}"
+                    f" Terminating signal: {ji.terminating_signal}."
+                )
 
-                elif not self.timestamp_ok(output):
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "OLD_OUTPUT_FILE"}
-                    logging.error(
-                        f"drmaa job {job.id} processing file {filename} has not created a new output file {output}. "
-                        f"Terminating signal: {ji.terminating_signal}."
-                    )
+            elif not self.timestamp_ok(output):
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "OLD_OUTPUT_FILE"}
+                logging.error(
+                    f"drmaa job {job.id} processing file {filename} has not created a new output file {output}. "
+                    f"Terminating signal: {ji.terminating_signal}."
+                )
 
-                elif js == drmaa2.JobState.DONE:
-                    self.job_completion_status[str(filename)] = True
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "SUCCESS"}
-                    logging.info(
-                        f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
-                        f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
-                    )
-                else:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                                   "final_state": "UNSPECIFIED"}
-                    logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
+            elif js == drmaa2.JobState.DONE:
+                self.job_completion_status[str(filename)] = True
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "SUCCESS"}
+                logging.info(
+                    f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
+                    f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
+                )
+            else:
+                self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                               "final_state": "UNSPECIFIED"}
+                logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
 
     def resubmit_jobs(self, jobscript, jobs):
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
