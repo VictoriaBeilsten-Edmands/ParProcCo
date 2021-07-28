@@ -1,6 +1,8 @@
 from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import getpass
+import logging
 import os
 import textwrap
 import unittest
@@ -20,9 +22,17 @@ def setup_data_file(working_directory):
 
 class TestJobController(unittest.TestCase):
 
+    def setUp(self):
+        current_user = getpass.getuser()
+        tmp_dir = f"/dls/tmp/{current_user}/"
+        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
+        if not Path(self.base_dir).is_dir():
+            logging.debug(f"Making directory {self.base_dir}")
+            Path(self.base_dir).mkdir(exist_ok=True)
+
     def test_end_to_end(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = Path(working_directory) / "test_script.sh"
@@ -44,7 +54,7 @@ class TestJobController(unittest.TestCase):
             input_file_path = setup_data_file(working_directory)
 
             jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q")
-            agg_data_path = jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
+            agg_data_path = jc.run(SimpleDataChunker(4), input_file_path, jobscript)
 
             self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
             with open(agg_data_path, "r") as af:
@@ -53,8 +63,7 @@ class TestJobController(unittest.TestCase):
             self.assertEqual(agg_data, ["96"])
 
     def test_all_jobs_fail(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = Path(working_directory) / "test_sleeper_script.sh"
@@ -79,7 +88,7 @@ class TestJobController(unittest.TestCase):
             jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
-                jc.run(SimpleDataChunker, [4], input_file_path, jobscript)
+                jc.run(SimpleDataChunker(4), input_file_path, jobscript)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
 

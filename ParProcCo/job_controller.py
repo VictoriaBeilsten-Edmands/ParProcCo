@@ -26,8 +26,8 @@ class JobController:
         self.scheduler = None
         self.data_chunker = None
 
-    def run(self, data_chunker_class, data_chunker_args, data_to_split, processing_script):
-        self.data_chunker = data_chunker_class(*data_chunker_args)
+    def run(self, data_chunker, data_to_split, processing_script):
+        self.data_chunker = data_chunker
         input_paths = self.data_chunker.chunk(self.working_directory, data_to_split)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.priority,

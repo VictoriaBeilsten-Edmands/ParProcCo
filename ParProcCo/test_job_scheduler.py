@@ -1,6 +1,8 @@
 import drmaa2 as drmaa2
 from datetime import datetime
 from datetime import timedelta
+import getpass
+import logging
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -32,9 +34,17 @@ def setup_data_files(working_directory, cluster_output_dir):
 
 class TestJobScheduler(unittest.TestCase):
 
+    def setUp(self):
+        current_user = getpass.getuser()
+        tmp_dir = f"/dls/tmp/{current_user}/"
+        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
+        if not Path(self.base_dir).is_dir():
+            logging.debug(f"Making directory {self.base_dir}")
+            Path(self.base_dir).mkdir(exist_ok=True)
+
     def test_create_template_with_cluster_output_dir(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q")
@@ -44,8 +54,7 @@ class TestJobScheduler(unittest.TestCase):
 
     def test_job_scheduler_runs(self):
         # create directory for test files
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
             jobscript = Path(working_directory) / "test_script.sh"
             with open(jobscript, "x") as f:
@@ -81,8 +90,7 @@ class TestJobScheduler(unittest.TestCase):
 
     def test_old_output_timestamps(self):
         # create directory for test files
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
             jobscript = Path(working_directory) / "test_script.sh"
             with open(jobscript, "x") as f:
@@ -136,8 +144,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue(q_name in q_name_list)
 
     def test_project_is_none(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -145,8 +152,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("project must be non-empty string" in str(context.exception))
 
     def test_project_is_empty(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -155,7 +161,7 @@ class TestJobScheduler(unittest.TestCase):
 
     def test_bad_project_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -163,8 +169,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("bad_project_name must be in list of project names" in str(context.exception))
 
     def test_queue_is_none(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -172,8 +177,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("priority must be non-empty string" in str(context.exception))
 
     def test_queue_is_empty(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -182,7 +186,7 @@ class TestJobScheduler(unittest.TestCase):
 
     def test_bad_queue_name(self):
         base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             with self.assertRaises(ValueError) as context:
@@ -190,8 +194,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("priority bad_queue_name.q not in queue list" in str(context.exception))
 
     def test_job_times_out(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = Path(working_directory) / "test_sleeper_script.sh"
@@ -227,8 +230,7 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertEqual(returned_jobs[job_id]["info"].job_state, "FAILED")
 
     def test_bad_jobscript_name(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
@@ -241,8 +243,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue(f"{jobscript} does not exist\n" in str(context.exception))
 
     def test_insufficient_jobscript_permissions(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
@@ -258,8 +259,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 
     def test_jobscript_cannot_be_opened(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
-        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
