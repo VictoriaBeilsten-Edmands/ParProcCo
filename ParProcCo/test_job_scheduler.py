@@ -4,6 +4,7 @@ from datetime import timedelta
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import textwrap
 import unittest
 
 from job_scheduler import JobScheduler
@@ -46,8 +47,21 @@ class TestJobScheduler(unittest.TestCase):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_script.sh")
+            jobscript = Path(working_directory) / "test_script.sh"
+            with open(jobscript, "x") as f:
+                script_lines = """
+                           #!/bin/bash
+                           if [[ ! $1 ]]; then
+                           printf "Error: no input file provided: Exiting\\n" >&2
+                           exit 1
+                           fi
+                           input_filepath="$1"
+                           input_file_content=`cat "$input_filepath"`
+                           let output_file_content=input_file_content*2
+                           printf "$output_file_content"
+                           """
+                f.write(textwrap.dedent(script_lines))
+            os.chmod(jobscript, 0o777)
 
             input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
 
@@ -70,8 +84,21 @@ class TestJobScheduler(unittest.TestCase):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_script.sh")
+            jobscript = Path(working_directory) / "test_script.sh"
+            with open(jobscript, "x") as f:
+                script_lines = """
+                           #!/bin/bash
+                           if [[ ! $1 ]]; then
+                           printf "Error: no input file provided: Exiting\\n" >&2
+                           exit 1
+                           fi
+                           input_filepath="$1"
+                           input_file_content=`cat "$input_filepath"`
+                           let output_file_content=input_file_content*2
+                           printf "$output_file_content"
+                           """
+                f.write(textwrap.dedent(script_lines))
+            os.chmod(jobscript, 0o777)
 
             input_paths, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
@@ -166,8 +193,23 @@ class TestJobScheduler(unittest.TestCase):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_sleeper_script.sh")
+
+            jobscript = Path(working_directory) / "test_sleeper_script.sh"
+            with open(jobscript, "x") as f:
+                script_lines = """
+                           #!/bin/bash
+                           if [[ ! $1 ]]; then
+                           printf "Error: no input file provided: Exiting\\n" >&2
+                           exit 1
+                           fi
+                           input_filepath="$1"
+                           sleep 5
+                           input_file_content=`cat "$input_filepath"`
+                           let output_file_content=input_file_content*2
+                           printf "$output_file_content"
+                           """
+                f.write(textwrap.dedent(script_lines))
+            os.chmod(jobscript, 0o777)
 
             input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
 
@@ -191,8 +233,7 @@ class TestJobScheduler(unittest.TestCase):
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
             input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "bad_jobscript_name.sh")
+            jobscript = Path(working_directory) / "bad_jobscript_name.sh"
 
             with self.assertRaises(FileNotFoundError) as context:
                 js.run(jobscript, input_files)
@@ -206,13 +247,32 @@ class TestJobScheduler(unittest.TestCase):
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
             input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_bad_permissions.sh")
+            jobscript = Path(working_directory) / "test_bad_permissions.sh"
+            f = open(jobscript, "x")
+            f.close()
+            os.chmod(jobscript, 0o666)
 
             with self.assertRaises(PermissionError) as context:
                 js.run(jobscript, input_files)
 
-            self.assertTrue(f"{jobscript} must be executable by user\n" in str(context.exception))
+            self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
+
+    def test_jobscript_cannot_be_opened(self):
+        base_dir = '/dls/tmp/vaq49247/tests/'
+        with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
+            jobscript = Path(working_directory) / "test_bad_read_permissions.sh"
+            f = open(jobscript, "x")
+            f.close()
+            os.chmod(jobscript, 0o333)
+
+            with self.assertRaises(PermissionError) as context:
+                js.run(jobscript, input_files)
+
+            self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 
 
 if __name__ == '__main__':

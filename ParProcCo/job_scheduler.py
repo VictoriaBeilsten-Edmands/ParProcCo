@@ -80,12 +80,21 @@ class JobScheduler:
             raise ValueError(f"{project} must be in list of project names: {prj_name_list}\n")
 
     def check_jobscript(self, jobscript):
-        if not Path(jobscript).exists():
+        jobscript_path = Path(jobscript)
+        if not jobscript_path.is_file():
             raise FileNotFoundError(f"{jobscript} does not exist\n")
-        elif not bool(os.stat(jobscript).st_mode & stat.S_IXUSR):
-            raise PermissionError(f"{jobscript} must be executable by user\n")
+
+        if not (os.access(jobscript, os.R_OK) and os.access(jobscript, os.X_OK)):
+            raise PermissionError(f"{jobscript} must be readable and executable by user\n")
+
+        try:
+            js = jobscript_path.open()
+            js.close()
+        except IOError:
+            (f"{jobscript} cannot be opened\n")
+
         else:
-            return jobscript
+            return jobscript_path
 
     def get_output_paths(self):
         return self.output_paths
@@ -111,7 +120,7 @@ class JobScheduler:
         self.run_and_monitor(jobscript, input_paths, log_path)
 
     def run_and_monitor(self, jobscript, input_paths, log_path=None):
-        self.check_jobscript(jobscript)
+        jobscript = self.check_jobscript(jobscript)
         self.job_details = []
         self.log_path = log_path
 
@@ -207,30 +216,28 @@ class JobScheduler:
 
                 # Check job states against expected possible options:
                 if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
                                                                    "final_state": "UNDETERMINED"}
                     logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
                 elif js == drmaa2.JobState.FAILED:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename, "final_state": "FAILED"}
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                                   "final_state": "FAILED"}
                     logging.error(
                         f"drmaa job {job.id} processing file filename failed."
                         f" Terminating signal: {ji.terminating_signal}."
                     )
 
                 elif not output.exists():
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename, "final_state": "NO_OUTPUT"}
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                                   "final_state": "NO_OUTPUT"}
                     logging.error(
                         f"drmaa job {job.id} processing file {filename} has not created output file {output}"
                         f" Terminating signal: {ji.terminating_signal}."
                     )
 
                 elif not self.timestamp_ok(output):
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename,
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
                                                                    "final_state": "OLD_OUTPUT_FILE"}
                     logging.error(
                         f"drmaa job {job.id} processing file {filename} has not created a new output file {output}. "
@@ -239,15 +246,15 @@ class JobScheduler:
 
                 elif js == drmaa2.JobState.DONE:
                     self.job_completion_status[str(filename)] = True
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename, "final_state": "SUCCESS"}
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                                   "final_state": "SUCCESS"}
                     logging.info(
                         f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
                         f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                     )
                 else:
-                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js,
-                                                                   "input_path": filename, "final_state": "UNSPECIFIED"}
+                    self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                                   "final_state": "UNSPECIFIED"}
                     logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
 
     def resubmit_jobs(self, jobscript, jobs):

@@ -1,7 +1,8 @@
-import os
+from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from datetime import timedelta
+import os
+import textwrap
 import unittest
 
 from job_controller import JobController
@@ -23,8 +24,22 @@ class TestJobController(unittest.TestCase):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_script.sh")
+
+            jobscript = Path(working_directory) / "test_script.sh"
+            with open(jobscript, "x") as f:
+                script_lines = """
+                           #!/bin/bash
+                           if [[ ! $1 ]]; then
+                           printf "Error: no input file provided: Exiting\\n" >&2
+                           exit 1
+                           fi
+                           input_filepath="$1"
+                           input_file_content=`cat "$input_filepath"`
+                           let output_file_content=input_file_content*2
+                           printf "$output_file_content"
+                           """
+                f.write(textwrap.dedent(script_lines))
+            os.chmod(jobscript, 0o777)
 
             input_file_path = setup_data_file(working_directory)
 
@@ -41,8 +56,23 @@ class TestJobController(unittest.TestCase):
         base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            script_dir = os.path.join(Path(__file__).absolute().parent.parent, "scripts")
-            jobscript = os.path.join(script_dir, "test_sleeper_script.sh")
+
+            jobscript = Path(working_directory) / "test_sleeper_script.sh"
+            with open(jobscript, "x") as f:
+                script_lines = """
+                           #!/bin/bash
+                           if [[ ! $1 ]]; then
+                           printf "Error: no input file provided: Exiting\\n" >&2
+                           exit 1
+                           fi
+                           input_filepath="$1"
+                           sleep 5
+                           input_file_content=`cat "$input_filepath"`
+                           let output_file_content=input_file_content*2
+                           printf "$output_file_content"
+                           """
+                f.write(textwrap.dedent(script_lines))
+            os.chmod(jobscript, 0o777)
 
             input_file_path = setup_data_file(working_directory)
 
