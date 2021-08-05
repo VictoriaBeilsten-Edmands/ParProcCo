@@ -13,23 +13,70 @@ from job_scheduler import JobScheduler
 
 
 def setup_data_files(working_directory, cluster_output_dir):
-    # create test files
-    input_files = []
-    output_files = []
-    input_nums = []
+    file_name = "test_raw_data.txt"
+    input_file_path = Path(working_directory) / file_name
+    with open(input_file_path, "w") as f:
+        f.write("0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n")
+        slice_params = []
     for i in range(4):
-        input_file_name = f"data_file_0{i}.txt"
-        input_file_path = Path(working_directory) / input_file_name
-        input_files.append(input_file_path)
-        output_files.append(Path(cluster_output_dir) / f"out_{input_file_name}")
+        slice_params.append(["--start", str(i), "--stop", "8", "--step", "4"])
 
-        input_num = str(i**3+3)
-        input_nums.append(input_num)
+    output_file_paths = [Path(cluster_output_dir) / f"out_{input_file_path.stem}_{i}.txt" for i in range(4)]
+    output_nums = ["0\n8\n", "2\n10\n", "4\n12\n", "6\n14\n"]
+    return input_file_path, output_file_paths, output_nums, slice_params
 
-        with open(input_file_path, "w") as f:
-            f.write(input_num)
 
-    return input_files, output_files, input_nums
+def setup_jobscript(working_directory):
+    jobscript = Path(working_directory) / "test_script.py"
+    with open(jobscript, "x") as f:
+        jobscript_lines = """
+#!/usr/bin/env python3
+
+import argparse
+import sys
+
+
+def setup_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_path", help="str: path to input file", type=str)
+    parser.add_argument("--output_path", help="str: path to output file", type=str)
+    parser.add_argument("--start", help="index to start at (inclusive)")
+    parser.add_argument("--stop", help="index to end at (exclusive)")
+    parser.add_argument("--step", help="step size")
+
+    return parser
+
+def check_args(args):
+    empty_fields = [k for k, v in vars(args).items() if v is None]
+    if len(empty_fields) > 0:
+        raise ValueError(f"Missing arguments: {empty_fields}")
+
+def write_lines(input_path, output_path, start, stop, step):
+    with open(input_path, "r") as in_f:
+        for i, line in enumerate(in_f):
+            if i >= stop:
+                break
+
+            elif i >= start and ((i - start) % step == 0):
+                doubled = int(line.strip("\\n"))*2
+                doubled_str = f"{doubled}\\n"
+                with open(output_path, "a+") as out_f:
+                    out_f.write(doubled_str)
+
+if __name__ == '__main__':
+    '''
+    $ python jobscript.py --input_path input_path --output_path output_path --start start --stop stop --step step
+    '''
+    parser = setup_parser()
+    args = parser.parse_args()
+    check_args(args)
+
+    write_lines(args.input_path, args.output_path, int(args.start), int(args.stop), int(args.step))
+"""
+        jobscript_lines = jobscript_lines.lstrip()
+        f.write(jobscript_lines)
+    os.chmod(jobscript, 0o777)
+    return jobscript
 
 
 class TestJobScheduler(unittest.TestCase):
@@ -48,7 +95,7 @@ class TestJobScheduler(unittest.TestCase):
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q")
-            js.create_template(input_paths, "test.sh")
+            js.create_template(input_paths, "some_script.py", ["slice_param"], 1)
             cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
@@ -56,71 +103,42 @@ class TestJobScheduler(unittest.TestCase):
         # create directory for test files
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            jobscript = Path(working_directory) / "test_script.sh"
-            with open(jobscript, "x") as f:
-                script_lines = """
-                           #!/bin/bash
-                           if [[ ! $1 ]]; then
-                           printf "Error: no input file provided: Exiting\\n" >&2
-                           exit 1
-                           fi
-                           input_filepath="$1"
-                           input_file_content=`cat "$input_filepath"`
-                           let output_file_content=input_file_content*2
-                           printf "$output_file_content"
-                           """
-                f.write(textwrap.dedent(script_lines))
-            os.chmod(jobscript, 0o777)
 
-            input_files, output_files, input_nums = setup_data_files(working_directory, cluster_output_dir)
+            input_path, output_paths, out_nums, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            jobscript = setup_jobscript(working_directory)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.run(jobscript, input_files)
+            js.run(jobscript, input_path, slice_params)
 
             # check output files
-            for out_file, num in zip(output_files, input_nums):
-                expected_num = str(int(num) * 2)
+            for output_file, expected_nums in zip(output_paths, out_nums):
 
-                with open(out_file, "r") as f:
+                with open(output_file, "r") as f:
                     file_content = f.read()
 
-                self.assertTrue(os.path.exists(out_file), msg=f"Output file {out_file} was not created\n")
-                self.assertEqual(expected_num, file_content, msg=f"Output file {out_file} content was incorrect\n")
+                self.assertTrue(os.path.exists(output_file), msg=f"Output file {output_file} was not created\n")
+                self.assertEqual(expected_nums, file_content, msg=f"Output file {output_file} content was incorrect\n")
 
     def test_old_output_timestamps(self):
         # create directory for test files
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            jobscript = Path(working_directory) / "test_script.sh"
-            with open(jobscript, "x") as f:
-                script_lines = """
-                           #!/bin/bash
-                           if [[ ! $1 ]]; then
-                           printf "Error: no input file provided: Exiting\\n" >&2
-                           exit 1
-                           fi
-                           input_filepath="$1"
-                           input_file_content=`cat "$input_filepath"`
-                           let output_file_content=input_file_content*2
-                           printf "$output_file_content"
-                           """
-                f.write(textwrap.dedent(script_lines))
-            os.chmod(jobscript, 0o777)
+            jobscript = setup_jobscript(working_directory)
 
-            input_paths, _, _ = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
             js.job_history[js.batch_number] = {}
-            js.job_completion_status = {str(input_path): False for input_path in input_paths}
+            js.job_completion_status = {" ".join(slice_param): False for slice_param in slice_params}
             js.check_jobscript(jobscript)
             js.job_details = []
             js.log_path = None
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js.run_jobs(session, jobscript, input_paths)
+            js.run_jobs(session, jobscript, input_file_path, slice_params)
             js.wait_for_jobs(session)
             js.start_time = datetime.now()
             js.report_job_info()
@@ -160,7 +178,6 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("project must be non-empty string" in str(context.exception))
 
     def test_bad_project_name(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
@@ -185,7 +202,6 @@ class TestJobScheduler(unittest.TestCase):
             self.assertTrue("priority must be non-empty string" in str(context.exception))
 
     def test_bad_queue_name(self):
-        base_dir = '/dls/tmp/vaq49247/tests/'
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
@@ -197,29 +213,16 @@ class TestJobScheduler(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
-            jobscript = Path(working_directory) / "test_sleeper_script.sh"
-            with open(jobscript, "x") as f:
-                script_lines = """
-                           #!/bin/bash
-                           if [[ ! $1 ]]; then
-                           printf "Error: no input file provided: Exiting\\n" >&2
-                           exit 1
-                           fi
-                           input_filepath="$1"
-                           sleep 5
-                           input_file_content=`cat "$input_filepath"`
-                           let output_file_content=input_file_content*2
-                           printf "$output_file_content"
-                           """
-                f.write(textwrap.dedent(script_lines))
-            os.chmod(jobscript, 0o777)
+            jobscript = setup_jobscript(working_directory)
+            with open(jobscript, "a+") as f:
+                f.write("import time\ntime.sleep(5)\n")
 
-            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
                               timeout=timedelta(seconds=1))
-            js.run(jobscript, input_files)
+            js.run(jobscript, input_file_path, slice_params)
             jh = js.job_history
             self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
             returned_jobs = jh[0]
@@ -234,11 +237,11 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "bad_jobscript_name.sh"
 
             with self.assertRaises(FileNotFoundError) as context:
-                js.run(jobscript, input_files)
+                js.run(jobscript, input_file_path, slice_params)
 
             self.assertTrue(f"{jobscript} does not exist\n" in str(context.exception))
 
@@ -247,14 +250,15 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
+
+            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "test_bad_permissions.sh"
             f = open(jobscript, "x")
             f.close()
             os.chmod(jobscript, 0o666)
 
             with self.assertRaises(PermissionError) as context:
-                js.run(jobscript, input_files)
+                js.run(jobscript, input_file_path, slice_params)
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 
@@ -263,14 +267,14 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_files, _, _ = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "test_bad_read_permissions.sh"
             f = open(jobscript, "x")
             f.close()
             os.chmod(jobscript, 0o333)
 
             with self.assertRaises(PermissionError) as context:
-                js.run(jobscript, input_files)
+                js.run(jobscript, input_file_path, slice_params)
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 

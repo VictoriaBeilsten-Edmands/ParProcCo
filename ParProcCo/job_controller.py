@@ -24,15 +24,17 @@ class JobController:
         self.cpus = cpus
         self.timeout = timeout
         self.scheduler = None
-        self.data_chunker = None
+        self.data_slicer = None
+        self.data_aggregator = None
 
-    def run(self, data_chunker, data_to_split, processing_script):
-        self.data_chunker = data_chunker
-        input_paths = self.data_chunker.chunk(self.working_directory, data_to_split)
+    def run(self, data_slicer, data_aggregator, input_path, number_jobs, processing_script):
+        self.data_slicer = data_slicer
+        self.data_aggregator = data_aggregator
+        slice_params = self.data_slicer.slice(input_path, number_jobs)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.priority,
                                       self.cpus, self.timeout)
-        self.scheduler.run(processing_script, input_paths, log_path=None)
+        self.scheduler.run(processing_script, input_path, slice_params, log_path=None)
 
         self.rerun_killed_jobs(processing_script)
         aggregated_data_path = self.aggregate_data()
@@ -40,8 +42,8 @@ class JobController:
 
     def aggregate_data(self):
         if self.scheduler.get_success():
-            chunked_results = self.scheduler.get_output_paths()
-            aggregated_data_path = self.data_chunker.aggregate(self.cluster_output_dir, chunked_results)
+            sliced_results = self.scheduler.get_output_paths()
+            aggregated_data_path = self.data_aggregator.aggregate(self.cluster_output_dir, sliced_results)
             print(f"Processing complete. Aggregated results: {aggregated_data_path}\n")
             return aggregated_data_path
         else:

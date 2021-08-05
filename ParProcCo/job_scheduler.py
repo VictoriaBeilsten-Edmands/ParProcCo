@@ -114,30 +114,30 @@ class JobScheduler:
             return True
         return False
 
-    def run(self, jobscript, input_paths, log_path=None):
+    def run(self, jobscript, input_path, slice_params, log_path=None):
         self.job_history[self.batch_number] = {}
-        self.job_completion_status = {str(input_path): False for input_path in input_paths}
-        self.run_and_monitor(jobscript, input_paths, log_path)
+        self.job_completion_status = {" ".join(slice_param): False for slice_param in slice_params}
+        self.run_and_monitor(jobscript, input_path, slice_params, log_path)
 
-    def run_and_monitor(self, jobscript, input_paths, log_path=None):
+    def run_and_monitor(self, jobscript, input_path, slice_params, log_path=None):
         jobscript = self.check_jobscript(jobscript)
         self.job_details = []
         self.log_path = log_path
 
         session = JobSession()  # Automatically destroyed when it is out of scope
-        self.run_jobs(session, jobscript, input_paths)
+        self.run_jobs(session, jobscript, input_path, slice_params)
         self.wait_for_jobs(session)
         self.report_job_info()
 
-    def run_jobs(self, session, jobscript, input_paths):
-        logging.debug(f"Running job on cluster for {input_paths}")
+    def run_jobs(self, session, jobscript, input_path, slice_params):
+        logging.debug(f"Running jobs on cluster for {input_path}")
         try:
             # Run all input paths in parallel:
-            for input_path in input_paths:
-                template = self.create_template(input_path, jobscript)
+            for i, slice_param in enumerate(slice_params):
+                template = self.create_template(input_path, jobscript, slice_param, i)
                 logging.debug(f"Submitting drmaa job with file {input_path}")
                 job = session.run_job(template)
-                self.job_details.append([job, input_path, Path(template.output_path)])
+                self.job_details.append([job, input_path, slice_param, Path(template.output_path)])
                 logging.debug(f"drmaa job for file {input_path} has been submitted with id {job.id}")
         except Drmaa2Exception:
             logging.error(f"Drmaa exception", exc_info=True)
@@ -146,19 +146,19 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def create_template(self, input_path, jobscript, job_name="job_scheduler_testing"):
+    def create_template(self, input_path, jobscript, slice_param, i, job_name="job_scheduler_testing"):
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
         else:
             logging.debug(f"Directory {self.cluster_output_dir} already exists")
 
-        args = [str(input_path)]
-        output_file = f"out_{input_path.stem}.txt"
-        err_file = f"err_{input_path.stem}.txt"
+        output_file = f"out_{input_path.stem}_{i}.txt"
+        err_file = f"err_{input_path.stem}_{i}.txt"
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(self.cluster_output_dir / err_file)
         self.output_paths.append(output_fp)
+        args = [f"--input_path", str(input_path), f"--output_path", str(output_fp)] + slice_param
 
         jt = JobTemplate({
             "job_name": job_name,
@@ -202,7 +202,7 @@ class JobScheduler:
 
     def report_job_info(self):
         # Iterate through jobs with logging to check individual job outcomes
-        for job, filename, output in self.job_details:
+        for job, filename, slice_param, output in self.job_details:
             logging.debug(f"Retrieving info for drmaa job {job.id} for file {filename}")
             try:
                 js = job.get_state()[0]  # Returns job state and job substate (always seems to be None)
@@ -212,7 +212,8 @@ class JobScheduler:
                 logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
                 raise
 
-            self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename}
+            self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
+                                                           "slice_param": slice_param}
 
             # Check job states against expected possible options:
             if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
@@ -229,27 +230,32 @@ class JobScheduler:
             elif not output.exists():
                 self.job_history[self.batch_number][job.id]["final_state"] = "NO_OUTPUT"
                 logging.error(
-                    f"drmaa job {job.id} processing file {filename} has not created output file {output}"
+                    f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
+                    f" output file {output}"
                     f" Terminating signal: {ji.terminating_signal}."
                 )
 
             elif not self.timestamp_ok(output):
                 self.job_history[self.batch_number][job.id]["final_state"] = "OLD_OUTPUT_FILE"
                 logging.error(
-                    f"drmaa job {job.id} processing file {filename} has not created a new output file {output}. "
+                    f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
+                    f" a new output file {output}"
                     f"Terminating signal: {ji.terminating_signal}."
                 )
 
             elif js == drmaa2.JobState.DONE:
-                self.job_completion_status[str(filename)] = True
+                self.job_completion_status[" ".join(slice_param)] = True
                 self.job_history[self.batch_number][job.id]["final_state"] = "SUCCESS"
                 logging.info(
-                    f"Job {job.id} processing file {filename} completed successfully after {ji.wallclock_time}. "
-                    f"CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
+                    f"Job {job.id} processing file {filename} with slice parameters {slice_param} completed"
+                    f" successfully after {ji.wallclock_time}."
+                    f" CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                 )
             else:
                 self.job_history[self.batch_number][job.id]["final_state"] = "UNSPECIFIED"
-                logging.error(f"Unexpected job state for file {filename}, job info: {ji}")
+                logging.error(
+                    f"Unexpected job state for file {filename} with slice parameters {slice_param}, job info: {ji}"
+                )
 
     def resubmit_jobs(self, jobscript, jobs):
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
