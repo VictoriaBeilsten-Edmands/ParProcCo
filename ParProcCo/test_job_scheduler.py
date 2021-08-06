@@ -6,7 +6,6 @@ import logging
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import textwrap
 import unittest
 
 from job_scheduler import JobScheduler

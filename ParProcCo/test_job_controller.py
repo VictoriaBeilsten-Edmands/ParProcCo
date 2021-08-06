@@ -4,7 +4,6 @@ from tempfile import TemporaryDirectory
 import getpass
 import logging
 import os
-import textwrap
 import unittest
 
 from job_controller import JobController
