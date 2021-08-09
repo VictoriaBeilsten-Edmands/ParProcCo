@@ -55,6 +55,26 @@ class TestDataSlicer(unittest.TestCase):
                                             ["--start", "2", "--stop", "11", "--step", "4"],
                                             ["--start", "3", "--stop", "11", "--step", "4"]])
 
+    def test_stop_not_int(self):
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            input_file_path = setup_data_file(working_directory)
+
+            slicer = SimpleDataSlicer()
+
+            with self.assertRaises(TypeError) as context:
+                slicer.slice(input_file_path, 4, stop="8")
+            self.assertTrue("stop is <class 'str'>, should be int" in str(context.exception))
+
+    def test_number_jobs_not_int(self):
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            input_file_path = setup_data_file(working_directory)
+
+            slicer = SimpleDataSlicer()
+
+            with self.assertRaises(TypeError) as context:
+                slicer.slice(input_file_path, "4")
+            self.assertTrue("number_jobs is <class 'str'>, should be int" in str(context.exception))
+
     def test_too_many_slices(self):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_file_path = setup_data_file(working_directory)
