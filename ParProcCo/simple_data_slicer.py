@@ -1,10 +1,13 @@
+from typing import List
+from pathlib import Path
+
 
 class SimpleDataSlicer:
 
     def __init__(self):
         pass
 
-    def slice(self, input_data_file, number_jobs, stop=None):
+    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List:
         if type(number_jobs) is not int:
             raise TypeError(f"number_jobs is {type(number_jobs)}, should be int\n")
 
@@ -19,6 +22,6 @@ class SimpleDataSlicer:
 
         number_jobs = min(stop, number_jobs)
 
-        slice_params = [["--start", str(i), "--stop", str(stop), "--step", str(number_jobs)]
+        slice_params = [[f"{i}:{stop}:{number_jobs}"]
                         for i in range(number_jobs)]
         return slice_params

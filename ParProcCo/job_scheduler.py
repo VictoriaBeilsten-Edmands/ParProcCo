@@ -3,37 +3,14 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from datetime import datetime
-
+from typing import Dict, List
 import drmaa2 as drmaa2
 from drmaa2 import JobSession, JobTemplate, Drmaa2Exception
 
 
-class TemporarilyLogToFile:
-
-    def __init__(self, logger, path=None):
-        self.logger = logger
-        self.log_path = path
-        if self.log_path is not None:
-            self.file_handler = logging.FileHandler(self.log_path, "a+")
-            self.logger.addHandler(self.file_handler)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        self.close()
-
-    def close(self):
-        if self.log_path is not None:
-            self.file_handler.close()
-            self.logger.removeHandler(self.file_handler)
-            with open(self.log_path, "a+") as fp:
-                fp.write("\n")
-
-
 class JobScheduler:
 
-    def __init__(self, working_directory, cluster_output_dir, project, priority, cpus=16, timeout=timedelta(hours=2)):
+    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, priority: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
         """
         JobScheduler can be used for cluster job submissions
         Args:
@@ -52,12 +29,12 @@ class JobScheduler:
         self.timeout = timeout
         self.logger = logging.getLogger()
         self.batch_number = 0
-        self.output_paths = []
+        self.output_paths: List[str] = []
         self.start_time = datetime.now()
-        self.job_history = {}
-        self.job_completion_status = {}
+        self.job_history: Dict[int, Dict] = {}
+        self.job_completion_status: Dict[str, bool] = {}
 
-    def check_queue_list(self, priority):
+    def check_queue_list(self, priority: str) -> str:
         if not priority:
             raise ValueError(f"priority must be non-empty string")
         priority = priority.lower()
@@ -68,7 +45,7 @@ class JobScheduler:
         else:
             raise ValueError(f"priority {priority} not in queue list: {q_name_list}\n")
 
-    def check_project_list(self, project):
+    def check_project_list(self, project: str) -> str:
         if not project:
             raise ValueError(f"project must be non-empty string")
         with os.popen('qconf -sprjl') as prj_proc:
@@ -78,57 +55,55 @@ class JobScheduler:
         else:
             raise ValueError(f"{project} must be in list of project names: {prj_name_list}\n")
 
-    def check_jobscript(self, jobscript):
-        jobscript_path = Path(jobscript)
-        if not jobscript_path.is_file():
+    def check_jobscript(self, jobscript: Path) -> Path:
+        if not jobscript.is_file():
             raise FileNotFoundError(f"{jobscript} does not exist\n")
 
         if not (os.access(jobscript, os.R_OK) and os.access(jobscript, os.X_OK)):
             raise PermissionError(f"{jobscript} must be readable and executable by user\n")
 
         try:
-            js = jobscript_path.open()
+            js = jobscript.open()
             js.close()
         except IOError:
-            (f"{jobscript} cannot be opened\n")
+            logging.error(f"{jobscript} cannot be opened\n")
 
         else:
-            return jobscript_path
+            return jobscript
 
-    def get_output_paths(self):
+    def get_output_paths(self) -> List[str]:
         return self.output_paths
 
-    def get_success(self):
+    def get_success(self) -> bool:
         return all(self.job_completion_status.values())
 
-    def get_failed_jobs(self):
+    def get_failed_jobs(self) -> Dict[str, bool]:
         return {k: v for k, v in self.job_completion_status.items() if not v}
 
-    def get_job_history(self):
+    def get_job_history(self) -> Dict[int, Dict]:
         return self.job_history
 
-    def timestamp_ok(self, output):
+    def timestamp_ok(self, output: Path) -> bool:
         mtime = datetime.fromtimestamp(output.stat().st_mtime)
         if mtime > self.start_time:
             return True
         return False
 
-    def run(self, jobscript, input_path, slice_params, log_path=None):
+    def run(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         self.job_history[self.batch_number] = {}
-        self.job_completion_status = {" ".join(slice_param): False for slice_param in slice_params}
-        self.run_and_monitor(jobscript, input_path, slice_params, log_path)
+        self.job_completion_status = {"".join(slice_param): False for slice_param in slice_params}
+        self.run_and_monitor(jobscript, input_path, slice_params)
 
-    def run_and_monitor(self, jobscript, input_path, slice_params, log_path=None):
+    def run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         jobscript = self.check_jobscript(jobscript)
-        self.job_details = []
-        self.log_path = log_path
+        self.job_details: List[List] = []
 
         session = JobSession()  # Automatically destroyed when it is out of scope
         self.run_jobs(session, jobscript, input_path, slice_params)
         self.wait_for_jobs(session)
         self.report_job_info()
 
-    def run_jobs(self, session, jobscript, input_path, slice_params):
+    def run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         logging.debug(f"Running jobs on cluster for {input_path}")
         try:
             # Run all input paths in parallel:
@@ -145,7 +120,7 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def create_template(self, input_path, jobscript, slice_param, i, job_name="job_scheduler_testing"):
+    def create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int, job_name: str = "job_scheduler_testing") -> JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
@@ -157,7 +132,7 @@ class JobScheduler:
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(self.cluster_output_dir / err_file)
         self.output_paths.append(output_fp)
-        args = [f"--input_path", str(input_path), f"--output_path", str(output_fp)] + slice_param
+        args = [f"--input_path", str(input_path), f"--output_path", str(output_fp), f"-I"] + slice_param
 
         jt = JobTemplate({
             "job_name": job_name,
@@ -175,7 +150,7 @@ class JobScheduler:
         })
         return jt
 
-    def wait_for_jobs(self, session):
+    def wait_for_jobs(self, session: JobSession) -> None:
         try:
             job_list = [job_info[0] for job_info in self.job_details]
             # Wait for jobs to start (timeout shouldn't include queue time)
@@ -199,7 +174,7 @@ class JobScheduler:
         except Exception:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
 
-    def report_job_info(self):
+    def report_job_info(self) -> None:
         # Iterate through jobs with logging to check individual job outcomes
         for job, filename, slice_param, output in self.job_details:
             logging.debug(f"Retrieving info for drmaa job {job.id} for file {filename}")
@@ -243,7 +218,7 @@ class JobScheduler:
                 )
 
             elif js == drmaa2.JobState.DONE:
-                self.job_completion_status[" ".join(slice_param)] = True
+                self.job_completion_status["".join(slice_param)] = True
                 self.job_history[self.batch_number][job.id]["final_state"] = "SUCCESS"
                 logging.info(
                     f"Job {job.id} processing file {filename} with slice parameters {slice_param} completed"
@@ -256,8 +231,8 @@ class JobScheduler:
                     f"Unexpected job state for file {filename} with slice parameters {slice_param}, job info: {ji}"
                 )
 
-    def resubmit_jobs(self, jobscript, jobs):
+    def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
         self.batch_number += 1
         self.job_history[self.batch_number] = {}
-        self.run(jobscript, jobs)
+        self.run(jobscript, input_path, slice_params)
