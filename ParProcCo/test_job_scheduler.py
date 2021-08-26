@@ -98,7 +98,7 @@ class TestJobScheduler(unittest.TestCase):
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", queue="medium.q")
-            js.create_template(input_paths, "some_script.py", ["slice_param"], 1)
+            js._create_template(input_paths, "some_script.py", ["slice_param"], 1)
             cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
@@ -140,10 +140,10 @@ class TestJobScheduler(unittest.TestCase):
             js.job_details = []
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js.run_jobs(session, jobscript, input_file_path, slice_params)
-            js.wait_for_jobs(session)
+            js._run_jobs(session, jobscript, input_file_path, slice_params)
+            js._wait_for_jobs(session)
             js.start_time = datetime.now()
-            js.report_job_info()
+            js._report_job_info()
 
             job_stats = js.job_completion_status
             # check failure list

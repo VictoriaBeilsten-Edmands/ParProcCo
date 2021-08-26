@@ -18,7 +18,6 @@ class JobScheduler:
         self.queue = self.check_queue_list(queue)
         self.cpus = cpus
         self.timeout = timeout
-        self.logger = logging.getLogger()
         self.batch_number = 0
         self.output_paths: List[Path] = []
         self.start_time = datetime.now()
@@ -83,23 +82,23 @@ class JobScheduler:
     def run(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         self.job_history[self.batch_number] = {}
         self.job_completion_status = {"".join(slice_param): False for slice_param in slice_params}
-        self.run_and_monitor(jobscript, input_path, slice_params)
+        self._run_and_monitor(jobscript, input_path, slice_params)
 
-    def run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         jobscript = self.check_jobscript(jobscript)
         self.job_details: List[List] = []
 
         session = JobSession()  # Automatically destroyed when it is out of scope
-        self.run_jobs(session, jobscript, input_path, slice_params)
-        self.wait_for_jobs(session)
-        self.report_job_info()
+        self._run_jobs(session, jobscript, input_path, slice_params)
+        self._wait_for_jobs(session)
+        self._report_job_info()
 
-    def run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def _run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         logging.debug(f"Running jobs on cluster for {input_path}")
         try:
             # Run all input paths in parallel:
             for i, slice_param in enumerate(slice_params):
-                template = self.create_template(input_path, jobscript, slice_param, i)
+                template = self._create_template(input_path, jobscript, slice_param, i)
                 logging.debug(f"Submitting drmaa job with file {input_path}")
                 job = session.run_job(template)
                 self.job_details.append([job, input_path, slice_param, Path(template.output_path)])
@@ -111,7 +110,7 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int, job_name: str = "job_scheduler_testing") -> JobTemplate:
+    def _create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int, job_name: str = "job_scheduler_testing") -> JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
@@ -141,7 +140,7 @@ class JobScheduler:
         })
         return jt
 
-    def wait_for_jobs(self, session: JobSession) -> None:
+    def _wait_for_jobs(self, session: JobSession) -> None:
         try:
             job_list = [job_info[0] for job_info in self.job_details]
             # Wait for jobs to start (timeout shouldn't include queue time)
@@ -165,7 +164,7 @@ class JobScheduler:
         except Exception:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
 
-    def report_job_info(self) -> None:
+    def _report_job_info(self) -> None:
         # Iterate through jobs with logging to check individual job outcomes
         for job, filename, slice_param, output in self.job_details:
             logging.debug(f"Retrieving info for drmaa job {job.id} for file {filename}")
@@ -227,3 +226,22 @@ class JobScheduler:
         self.batch_number += 1
         self.job_history[self.batch_number] = {}
         self.run(jobscript, input_path, slice_params)
+
+    def filter_killed_jobs(self, jobs: List) -> List:
+        killed_jobs = [job for job in jobs if job["info"].terminating_signal == "SIGKILL"]
+        return killed_jobs
+
+    def rerun_killed_jobs(self, processing_script: Path):
+        if not self.get_success():
+            job_history = self.job_history
+            failed_jobs = [job_info for job_info in job_history[0].values() if job_info["final_state"] != "SUCCESS"]
+
+            if any(self.job_completion_status.values()):
+                killed_jobs = self.filter_killed_jobs(failed_jobs)
+                killed_jobs_inputs = [job["input_path"] for job in killed_jobs]
+                if not all(x == killed_jobs_inputs[0] for x in killed_jobs_inputs):
+                    raise RuntimeError(f"input paths in killed_jobs must all be the same\n")
+                slice_params = [job["slice_param"] for job in killed_jobs]
+                self.resubmit_jobs(processing_script, killed_jobs_inputs[0], slice_params)
+            else:
+                raise RuntimeError(f"All jobs failed\n")
