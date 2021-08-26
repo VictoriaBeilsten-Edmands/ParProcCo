@@ -2,7 +2,6 @@ import h5py
 from datetime import datetime, timezone
 import numpy as np
 from pathlib import Path
-from shutil import copyfile
 from typing import List, Tuple
 
 
@@ -24,7 +23,7 @@ class SimpleDataAggregator:
         else:
             raise TypeError(f"total_slices is {type(total_slices)}, should be int\n")
 
-    def aggregate_data(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
+    def aggregate(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         self._renormalise(output_data_files)
         aggregated_data_file = self._write_aggregation_file(aggregation_output_dir, output_data_files)
         return aggregated_data_file

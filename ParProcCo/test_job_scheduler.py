@@ -179,6 +179,13 @@ class TestJobScheduler(unittest.TestCase):
                 JobScheduler(working_directory, cluster_output_dir, "", "medium.q")
             self.assertTrue("project must be non-empty string" in str(context.exception))
 
+    def test_check_project_list(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            self.assertEqual(js.project, "b24")
+
     def test_bad_project_name(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -186,6 +193,20 @@ class TestJobScheduler(unittest.TestCase):
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "bad_project_name", "medium.q")
             self.assertTrue("bad_project_name must be in list of project names" in str(context.exception))
+
+    def test_check_queue_list(self):
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            self.assertEqual(js.priority, "medium.q")
+
+    def test_uppercase_queue_list(self):
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "MEDIUM.Q")
+            self.assertEqual(js.priority, "medium.q")
 
     def test_queue_is_none(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -279,6 +300,95 @@ class TestJobScheduler(unittest.TestCase):
                 js.run(jobscript, input_file_path, slice_params)
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
+
+    def test_get_output_paths(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.output_paths = [cluster_output_dir / "out1.nxs", cluster_output_dir / "out2.nxs"]
+            self.assertEqual(js.get_output_paths(), [cluster_output_dir / "out1.nxs", cluster_output_dir / "out2.nxs"])
+
+    def test_get_success_all_true(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": True, "1:8:4": True}
+            self.assertTrue(js.get_success())
+
+    def test_get_success_all_false(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": False, "1:8:4": False}
+            self.assertFalse(js.get_success())
+
+    def test_get_success_true_false(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": False, "1:8:4": True}
+            self.assertFalse(js.get_success())
+
+    def test_get_failed_jobs_all(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": False, "1:8:4": False}
+            self.assertEqual(js.get_failed_jobs(), {"0:8:4": False, "1:8:4": False})
+
+    def test_get_failed_jobs_none(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": True, "1:8:4": True}
+            self.assertEqual(js.get_failed_jobs(), {})
+
+    def test_get_failed_jobs_some(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_completion_status = {"0:8:4": True, "1:8:4": False}
+            self.assertEqual(js.get_failed_jobs(), {"1:8:4": False})
+
+    def test_get_job_history(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            js.job_history = {0: {12: {"info": "0"}}, 1: {34: {"info": "1"}, 56: {"info": "2"}}}
+
+            self.assertEqual(js.get_job_history(), {0: {12: {"info": "0"}}, 1: {34: {"info": "1"}, 56: {"info": "2"}}})
+
+    def test_timestamp_ok_true(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+            cluster_output_dir.mkdir(parents=True, exist_ok=True)
+            filepath = cluster_output_dir / "out_0.nxs"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+            f = open(filepath, "x")
+            f.close()
+
+            self.assertTrue(js.timestamp_ok(filepath))
+
+    def test_timestamp_ok_false(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+            cluster_output_dir.mkdir(parents=True, exist_ok=True)
+            filepath = cluster_output_dir / "out_0.nxs"
+
+            f = open(filepath, "x")
+            f.close()
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+
+            self.assertFalse(js.timestamp_ok(filepath))
 
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ class JobScheduler:
         self.timeout = timeout
         self.logger = logging.getLogger()
         self.batch_number = 0
-        self.output_paths: List[str] = []
+        self.output_paths: List[Path] = []
         self.start_time = datetime.now()
         self.job_history: Dict[int, Dict] = {}
         self.job_completion_status: Dict[str, bool] = {}
@@ -71,7 +71,7 @@ class JobScheduler:
         else:
             return jobscript
 
-    def get_output_paths(self) -> List[str]:
+    def get_output_paths(self) -> List[Path]:
         return self.output_paths
 
     def get_success(self) -> bool:
@@ -84,8 +84,8 @@ class JobScheduler:
         return self.job_history
 
     def timestamp_ok(self, output: Path) -> bool:
-        mtime = datetime.fromtimestamp(output.stat().st_mtime)
-        if mtime > self.start_time:
+        mod_time = datetime.fromtimestamp(output.stat().st_mtime)
+        if mod_time > self.start_time:
             return True
         return False
 
@@ -131,7 +131,7 @@ class JobScheduler:
         err_file = f"err_{input_path.stem}_{i}.txt"
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(self.cluster_output_dir / err_file)
-        self.output_paths.append(output_fp)
+        self.output_paths.append(Path(output_fp))
         args = [f"--input_path", str(input_path), f"--output_path", str(output_fp), f"-I"] + slice_param
 
         jt = JobTemplate({

@@ -63,7 +63,7 @@ class TestDataSlicer(unittest.TestCase):
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
 
             aggregator = SimpleDataAggregator(2)
-            aggregator_filepath = aggregator.aggregate_data(cluster_output_dir, sliced_data_files)
+            aggregator_filepath = aggregator.aggregate(cluster_output_dir, sliced_data_files)
             total_volume = aggregator.total_volume
             total_weights = aggregator.accumulator_weights
             with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
@@ -71,8 +71,6 @@ class TestDataSlicer(unittest.TestCase):
                 weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
             np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
             np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
-
-            #aggregator.write_aggregation_file(cluster_output_dir, sliced_data_files)
 
     # def test_get_starts_and_stops(self) -> None:
     #     output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
@@ -83,6 +81,7 @@ class TestDataSlicer(unittest.TestCase):
     #     aggregator.hkl_mins = [np.nan, np.nan, np.nan]
     #     aggregator.hkl_maxs = [np.nan, np.nan, np.nan]
     #     aggregator._hkl_axes = []
+
 
 if __name__ == '__main__':
     unittest.main()
