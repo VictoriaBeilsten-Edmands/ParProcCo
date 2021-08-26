@@ -333,39 +333,6 @@ class TestJobScheduler(unittest.TestCase):
             js.job_completion_status = {"0:8:4": False, "1:8:4": True}
             self.assertFalse(js.get_success())
 
-    def test_get_failed_jobs_all(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            cluster_output_dir = Path(working_directory) / "cluster_output"
-
-            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.job_completion_status = {"0:8:4": False, "1:8:4": False}
-            self.assertEqual(js.get_failed_jobs(), {"0:8:4": False, "1:8:4": False})
-
-    def test_get_failed_jobs_none(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            cluster_output_dir = Path(working_directory) / "cluster_output"
-
-            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.job_completion_status = {"0:8:4": True, "1:8:4": True}
-            self.assertEqual(js.get_failed_jobs(), {})
-
-    def test_get_failed_jobs_some(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            cluster_output_dir = Path(working_directory) / "cluster_output"
-
-            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.job_completion_status = {"0:8:4": True, "1:8:4": False}
-            self.assertEqual(js.get_failed_jobs(), {"1:8:4": False})
-
-    def test_get_job_history(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            cluster_output_dir = Path(working_directory) / "cluster_output"
-
-            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.job_history = {0: {12: {"info": "0"}}, 1: {34: {"info": "1"}, 56: {"info": "2"}}}
-
-            self.assertEqual(js.get_job_history(), {0: {12: {"info": "0"}}, 1: {34: {"info": "1"}, 56: {"info": "2"}}})
-
     def test_timestamp_ok_true(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"

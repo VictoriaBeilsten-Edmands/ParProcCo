@@ -32,8 +32,8 @@ class TestDataSlicer(unittest.TestCase):
             Path(self.base_dir).mkdir(exist_ok=True)
 
     def test_renormalise(self) -> None:
-        output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        output_file_paths = [Path("/scratch/victoria/i07-394487-applied-halfa.nxs"),
+                             Path("/scratch/victoria/i07-394487-applied-halfb.nxs")]
         aggregator = MSMAggregator(2)
         aggregator._renormalise(output_file_paths)
         total_volume = aggregator.total_volume
@@ -44,6 +44,7 @@ class TestDataSlicer(unittest.TestCase):
         np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
         np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
 
+    # TODO: add tests
     def test_fill_axes_fields(self) -> None:
         pass
 

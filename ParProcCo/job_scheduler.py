@@ -67,12 +67,6 @@ class JobScheduler:
     def get_success(self) -> bool:
         return all(self.job_completion_status.values())
 
-    def get_failed_jobs(self) -> Dict[str, bool]:
-        return {k: v for k, v in self.job_completion_status.items() if not v}
-
-    def get_job_history(self) -> Dict[int, Dict]:
-        return self.job_history
-
     def timestamp_ok(self, output: Path) -> bool:
         mod_time = datetime.fromtimestamp(output.stat().st_mtime)
         if mod_time > self.start_time:
@@ -224,7 +218,6 @@ class JobScheduler:
     def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
         self.batch_number += 1
-        self.job_history[self.batch_number] = {}
         self.run(jobscript, input_path, slice_params)
 
     def filter_killed_jobs(self, jobs: List) -> List:

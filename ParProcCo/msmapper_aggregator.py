@@ -9,7 +9,7 @@ class MSMAggregator:
 
     def __init__(self, total_slices: int) -> None:
 
-        self.output_data_files: List[str]
+        self.output_data_files: List[Path]
         self.hkl_spacing: List
         self.accumulator_hkl_lengths: List
         self.accumulator_hkl_ranges: List
@@ -28,7 +28,7 @@ class MSMAggregator:
         aggregated_data_file = self._write_aggregation_file(aggregation_output_dir, output_data_files)
         return aggregated_data_file
 
-    def _renormalise(self, output_data_files: List[str]) -> None:
+    def _renormalise(self, output_data_files: List[Path]) -> None:
         self.output_data_files = output_data_files
         self._fill_axes_fields()
         self._initialise_accumulator_arrays()
