@@ -38,7 +38,7 @@ class MSMAggregator:
         self.total_volume[np.isnan(self.total_volume)] = 0
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
-        aggregated_data_file = Path(aggregation_output_dir) / "aggregated_results.nxs"
+        aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
 
         with h5py.File(aggregated_data_file, "w") as f:
             binoculars = f.create_group("binoculars")

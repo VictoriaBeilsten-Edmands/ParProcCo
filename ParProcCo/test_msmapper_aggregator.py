@@ -72,15 +72,12 @@ class TestDataSlicer(unittest.TestCase):
             np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
             np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
 
-    # def test_get_starts_and_stops(self) -> None:
-    #     output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-    #                          "/scratch/victoria/i07-394487-applied-halfb.nxs"]
-    #     aggregator = MSMAggregator(2)
-    #     aggregator._fill_axes_fields(output_file_paths)
-    #
-    #     aggregator.hkl_mins = [np.nan, np.nan, np.nan]
-    #     aggregator.hkl_maxs = [np.nan, np.nan, np.nan]
-    #     aggregator._hkl_axes = []
+            self.assertEqual(aggregator_filepath, cluster_output_dir / "aggregated_results.nxs")
+            with h5py.File(aggregator_filepath, "r") as af:
+                aggregated_volumes = np.array(af["processed"]["reciprocal_space"]["volume"])
+                aggregated_weights = np.array(af["processed"]["reciprocal_space"]["weight"])
+            np.testing.assert_allclose(volumes_array, aggregated_volumes, rtol=0.001)
+            np.testing.assert_allclose(weights_array, aggregated_weights, rtol=0.001)
 
 
 if __name__ == '__main__':

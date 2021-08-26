@@ -6,8 +6,8 @@ import logging
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 from typing import List, Tuple
+import unittest
 
 from job_scheduler import JobScheduler
 
@@ -375,7 +375,6 @@ class TestJobScheduler(unittest.TestCase):
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
             f = open(filepath, "x")
             f.close()
-
             self.assertTrue(js.timestamp_ok(filepath))
 
     def test_timestamp_ok_false(self) -> None:

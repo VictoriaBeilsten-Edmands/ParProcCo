@@ -1,6 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 from job_scheduler import JobScheduler
 
 
@@ -36,7 +36,6 @@ class JobController:
         if self.scheduler.get_success():
             sliced_results = self.scheduler.get_output_paths()
             aggregated_file_path = self.data_aggregator.aggregate(self.cluster_output_dir, sliced_results)
-            print(f"Processing complete. Aggregated results: {aggregated_file_path}\n")
             return aggregated_file_path
         else:
             raise RuntimeError(f"Not all jobs were successful. Aggregation not performed\n")
