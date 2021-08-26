@@ -7,7 +7,7 @@ import numpy as np
 import unittest
 from typing import List
 
-from simple_data_aggregator import SimpleDataAggregator
+from msmapper_aggregator import MSMAggregator
 
 
 def setup_data_files(working_directory: Path) -> List[Path]:
@@ -34,7 +34,7 @@ class TestDataSlicer(unittest.TestCase):
     def test_renormalise(self) -> None:
         output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
                              "/scratch/victoria/i07-394487-applied-halfb.nxs"]
-        aggregator = SimpleDataAggregator(2)
+        aggregator = MSMAggregator(2)
         aggregator._renormalise(output_file_paths)
         total_volume = aggregator.total_volume
         total_weights = aggregator.accumulator_weights
@@ -62,7 +62,7 @@ class TestDataSlicer(unittest.TestCase):
             if not cluster_output_dir.exists():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
 
-            aggregator = SimpleDataAggregator(2)
+            aggregator = MSMAggregator(2)
             aggregator_filepath = aggregator.aggregate(cluster_output_dir, sliced_data_files)
             total_volume = aggregator.total_volume
             total_weights = aggregator.accumulator_weights
@@ -75,7 +75,7 @@ class TestDataSlicer(unittest.TestCase):
     # def test_get_starts_and_stops(self) -> None:
     #     output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
     #                          "/scratch/victoria/i07-394487-applied-halfb.nxs"]
-    #     aggregator = SimpleDataAggregator(2)
+    #     aggregator = MSMAggregator(2)
     #     aggregator._fill_axes_fields(output_file_paths)
     #
     #     aggregator.hkl_mins = [np.nan, np.nan, np.nan]

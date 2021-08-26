@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-class SimpleDataAggregator:
+class MSMAggregator:
 
     def __init__(self, total_slices: int) -> None:
 

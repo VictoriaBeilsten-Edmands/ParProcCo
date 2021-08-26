@@ -8,7 +8,7 @@ import unittest
 
 from job_controller import JobController
 from simple_data_slicer import SimpleDataSlicer
-from simple_data_aggregator import SimpleDataAggregator
+from msmapper_aggregator import MSMAggregator
 
 
 def setup_data_file(working_directory: str) -> Path:
@@ -100,7 +100,7 @@ class TestJobController(unittest.TestCase):
             jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
-                jc.run(SimpleDataSlicer(), SimpleDataAggregator(4), input_file_path, 4, jobscript)
+                jc.run(SimpleDataSlicer(), MSMAggregator(4), input_file_path, 4, jobscript)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
 
