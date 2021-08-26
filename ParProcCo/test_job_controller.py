@@ -97,7 +97,7 @@ class TestJobController(unittest.TestCase):
 
             input_file_path = setup_data_file(working_directory)
 
-            jc = JobController(working_directory, cluster_output_dir, project="b24", priority="medium.q",
+            jc = JobController(working_directory, cluster_output_dir, project="b24", queue="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
                 jc.run(SimpleDataSlicer(), MSMAggregator(4), input_file_path, 4, jobscript)

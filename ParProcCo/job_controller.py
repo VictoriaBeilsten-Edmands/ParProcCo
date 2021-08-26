@@ -6,14 +6,14 @@ from job_scheduler import JobScheduler
 
 class JobController:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, priority: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
         """
         JobController is used to coordinate cluster job submissions with JobScheduler
         Args:
             working_directory (pathlib.Path or str): working directory
             cluster_output_dir (pathlib.Path or str): cluster output directory
             project (str): project name
-            priority (str): name of queue to submit to
+            queue (str): name of queue to submit to
             cpus (int, optional): Number of CPUs to request. Defaults to 16.
             timeout (int, optional): Timeout for cluster jobs in minutes. Defaults to 180 (2 hours).
         """
@@ -21,7 +21,7 @@ class JobController:
         self.working_directory = Path(working_directory)
         self.cluster_output_dir = Path(cluster_output_dir)
         self.project = project
-        self.priority = priority
+        self.queue = queue
         self.cpus = cpus
         self.timeout = timeout
         self.scheduler: JobScheduler = None
@@ -33,7 +33,7 @@ class JobController:
         self.data_aggregator = data_aggregator
         slice_params = self.data_slicer.slice(input_path, number_jobs)
 
-        self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.priority,
+        self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
         self.scheduler.run(processing_script, input_path, slice_params)
 

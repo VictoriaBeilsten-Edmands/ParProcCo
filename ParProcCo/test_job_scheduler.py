@@ -97,7 +97,7 @@ class TestJobScheduler(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
-            js = JobScheduler(working_directory, cluster_output_dir, project="b24", priority="medium.q")
+            js = JobScheduler(working_directory, cluster_output_dir, project="b24", queue="medium.q")
             js.create_template(input_paths, "some_script.py", ["slice_param"], 1)
             cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
@@ -199,14 +199,14 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            self.assertEqual(js.priority, "medium.q")
+            self.assertEqual(js.queue, "medium.q")
 
     def test_uppercase_queue_list(self):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "MEDIUM.Q")
-            self.assertEqual(js.priority, "medium.q")
+            self.assertEqual(js.queue, "medium.q")
 
     def test_queue_is_none(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -214,7 +214,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "b24", None)
-            self.assertTrue("priority must be non-empty string" in str(context.exception))
+            self.assertTrue("queue must be non-empty string" in str(context.exception))
 
     def test_queue_is_empty(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -222,7 +222,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "b24", "")
-            self.assertTrue("priority must be non-empty string" in str(context.exception))
+            self.assertTrue("queue must be non-empty string" in str(context.exception))
 
     def test_bad_queue_name(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -230,7 +230,7 @@ class TestJobScheduler(unittest.TestCase):
 
             with self.assertRaises(ValueError) as context:
                 JobScheduler(working_directory, cluster_output_dir, "b24", "bad_queue_name.q")
-            self.assertTrue("priority bad_queue_name.q not in queue list" in str(context.exception))
+            self.assertTrue("queue bad_queue_name.q not in queue list" in str(context.exception))
 
     def test_job_times_out(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:

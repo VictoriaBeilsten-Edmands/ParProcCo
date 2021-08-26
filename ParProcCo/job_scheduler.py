@@ -10,21 +10,21 @@ from drmaa2 import JobSession, JobTemplate, Drmaa2Exception
 
 class JobScheduler:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, priority: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
         """
         JobScheduler can be used for cluster job submissions
         Args:
             working_directory (pathlib.Path or str): working directory
             cluster_output_dir (pathlib.Path or str): cluster output directory
             project (str): project name
-            priority (str): name of queue to submit to
+            queue (str): name of queue to submit to
             cpus (int, optional): Number of CPUs to request. Defaults to 16.
             timeout (int, optional): Timeout for cluster jobs in minutes. Defaults to 180 (2 hours).
         """
         self.working_directory = Path(working_directory)
         self.cluster_output_dir = Path(cluster_output_dir)
         self.project = self.check_project_list(project)
-        self.priority = self.check_queue_list(priority)
+        self.queue = self.check_queue_list(queue)
         self.cpus = cpus
         self.timeout = timeout
         self.logger = logging.getLogger()
@@ -34,16 +34,16 @@ class JobScheduler:
         self.job_history: Dict[int, Dict] = {}
         self.job_completion_status: Dict[str, bool] = {}
 
-    def check_queue_list(self, priority: str) -> str:
-        if not priority:
-            raise ValueError(f"priority must be non-empty string")
-        priority = priority.lower()
+    def check_queue_list(self, queue: str) -> str:
+        if not queue:
+            raise ValueError(f"queue must be non-empty string")
+        queue = queue.lower()
         with os.popen('qconf -sql') as q_proc:
             q_name_list = q_proc.read().split()
-        if priority in q_name_list:
-            return priority
+        if queue in q_name_list:
+            return queue
         else:
-            raise ValueError(f"priority {priority} not in queue list: {q_name_list}\n")
+            raise ValueError(f"queue {queue} not in queue list: {q_name_list}\n")
 
     def check_project_list(self, project: str) -> str:
         if not project:
@@ -143,7 +143,7 @@ class JobScheduler:
             "working_directory": str(self.working_directory),
             "output_path": output_fp,
             "error_path": err_fp,
-            "queue_name": self.priority,
+            "queue_name": self.queue,
             "implementation_specific": {
                 "uge_jt_pe": f"smp",
             },
