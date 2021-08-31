@@ -251,9 +251,9 @@ class TestJobScheduler(unittest.TestCase):
             returned_jobs = jh[0]
             self.assertEqual(len(returned_jobs), 4)
             for job_id in returned_jobs:
-                self.assertEqual(returned_jobs[job_id]["info"].exit_status, 137)
-                self.assertEqual(returned_jobs[job_id]["info"].terminating_signal, "SIGKILL")
-                self.assertEqual(returned_jobs[job_id]["info"].job_state, "FAILED")
+                self.assertEqual(returned_jobs[job_id].info.exit_status, 137)
+                self.assertEqual(returned_jobs[job_id].info.terminating_signal, "SIGKILL")
+                self.assertEqual(returned_jobs[job_id].info.job_state, "FAILED")
 
     def test_bad_jobscript_name(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:

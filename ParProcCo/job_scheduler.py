@@ -6,6 +6,17 @@ from datetime import datetime
 from typing import Dict, List
 import drmaa2 as drmaa2
 from drmaa2 import JobSession, JobTemplate, Drmaa2Exception
+from dataclasses import dataclass
+
+
+@dataclass
+class StatusInfo:
+    '''Class for keeping track of job status.'''
+    info: drmaa2.JobInfo
+    state: drmaa2.JobState
+    input_path: Path
+    slice_param: List[str]
+    final_state: str = None
 
 
 class JobScheduler:
@@ -21,7 +32,7 @@ class JobScheduler:
         self.batch_number = 0
         self.output_paths: List[Path] = []
         self.start_time = datetime.now()
-        self.job_history: Dict[int, Dict] = {}
+        self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
         self.job_completion_status: Dict[str, bool] = {}
 
     def check_queue_list(self, queue: str) -> str:
@@ -170,23 +181,22 @@ class JobScheduler:
                 logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
                 raise
 
-            self.job_history[self.batch_number][job.id] = {"info": ji, "state": js, "input_path": filename,
-                                                           "slice_param": slice_param}
+            self.job_history[self.batch_number][job.id] = StatusInfo(ji, js, filename, slice_param)
 
             # Check job states against expected possible options:
             if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                self.job_history[self.batch_number][job.id]["final_state"] = "UNDETERMINED"
+                self.job_history[self.batch_number][job.id].final_state = "UNDETERMINED"
                 logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
             elif js == drmaa2.JobState.FAILED:
-                self.job_history[self.batch_number][job.id]["final_state"] = "FAILED"
+                self.job_history[self.batch_number][job.id].final_state = "FAILED"
                 logging.error(
                     f"drmaa job {job.id} processing file filename failed."
                     f" Terminating signal: {ji.terminating_signal}."
                 )
 
             elif not output.exists():
-                self.job_history[self.batch_number][job.id]["final_state"] = "NO_OUTPUT"
+                self.job_history[self.batch_number][job.id].final_state = "NO_OUTPUT"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
                     f" output file {output}"
@@ -194,7 +204,7 @@ class JobScheduler:
                 )
 
             elif not self.timestamp_ok(output):
-                self.job_history[self.batch_number][job.id]["final_state"] = "OLD_OUTPUT_FILE"
+                self.job_history[self.batch_number][job.id].final_state = "OLD_OUTPUT_FILE"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
                     f" a new output file {output}"
@@ -203,14 +213,14 @@ class JobScheduler:
 
             elif js == drmaa2.JobState.DONE:
                 self.job_completion_status["".join(slice_param)] = True
-                self.job_history[self.batch_number][job.id]["final_state"] = "SUCCESS"
+                self.job_history[self.batch_number][job.id].final_state = "SUCCESS"
                 logging.info(
                     f"Job {job.id} processing file {filename} with slice parameters {slice_param} completed"
                     f" successfully after {ji.wallclock_time}."
                     f" CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                 )
             else:
-                self.job_history[self.batch_number][job.id]["final_state"] = "UNSPECIFIED"
+                self.job_history[self.batch_number][job.id].final_state = "UNSPECIFIED"
                 logging.error(
                     f"Unexpected job state for file {filename} with slice parameters {slice_param}, job info: {ji}"
                 )
@@ -227,7 +237,7 @@ class JobScheduler:
     def rerun_killed_jobs(self, processing_script: Path):
         if not self.get_success():
             job_history = self.job_history
-            failed_jobs = [job_info for job_info in job_history[0].values() if job_info["final_state"] != "SUCCESS"]
+            failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
 
             if any(self.job_completion_status.values()):
                 killed_jobs = self.filter_killed_jobs(failed_jobs)
