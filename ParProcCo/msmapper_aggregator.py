@@ -41,20 +41,6 @@ class MSMAggregator:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
 
         with h5py.File(aggregated_data_file, "w") as f:
-            binoculars = f.create_group("binoculars")
-            binoculars.attrs["type"] = "space"
-            f.create_dataset("binoculars/counts", data=self.total_volume)
-            f.create_dataset("binoculars/contributions", data=self.accumulator_weights)
-            f.create_group("binoculars/axes")
-            for i, axis in enumerate(["H", "K", "L"]):
-                axis_min = self.hkl_mins[i]
-                axis_max = self.hkl_maxs[i]
-                scaling = (self.accumulator_hkl_lengths[i] - 1) / (axis_max - axis_min)
-                axis_dataset = [i, axis_min, axis_max, self.hkl_spacing[i], axis_min * scaling, axis_max * scaling]
-                f.create_dataset(f"binoculars/axes/{axis}", data=axis_dataset)
-
-            for i, filepath in enumerate(output_data_files):
-                f[f"entry{i}"] = h5py.ExternalLink(str(filepath), "/processed")
 
             processed = f.create_group("processed")
             processed.attrs["NX_class"] = "NXentry"
@@ -75,10 +61,27 @@ class MSMAggregator:
             for i, axis in enumerate(["h", "k", "l"]):
                 reciprocal_space.attrs[f"{axis}-axis_indices"] = i
                 f.create_dataset(f"processed/reciprocal_space/{axis}-axis", data=self.accumulator_hkl_ranges[i])
-            f.create_dataset("processed/reciprocal_space/volume", data=f["binoculars/counts"])
-            f.create_dataset("processed/reciprocal_space/weight", data=f["binoculars/contributions"])
+            f.create_dataset("processed/reciprocal_space/volume", data=self.total_volume)
+            f.create_dataset("processed/reciprocal_space/weight", data=self.accumulator_weights)
 
             f.attrs["default"] = "processed"
+
+            for i, filepath in enumerate(output_data_files):
+                f[f"entry{i}"] = h5py.ExternalLink(str(filepath), "/processed")
+
+            binoculars = f.create_group("binoculars")
+            binoculars.attrs["type"] = "space"
+
+            f.create_group("binoculars/axes")
+            for i, axis in enumerate(["H", "K", "L"]):
+                axis_min = self.hkl_mins[i]
+                axis_max = self.hkl_maxs[i]
+                scaling = (self.accumulator_hkl_lengths[i] - 1) / (axis_max - axis_min)
+                axis_dataset = [i, axis_min, axis_max, self.hkl_spacing[i], axis_min * scaling, axis_max * scaling]
+                f.create_dataset(f"binoculars/axes/{axis}", data=axis_dataset)
+
+            binoculars["counts"] = f["processed/reciprocal_space/volume"]
+            binoculars["contributions"] = f["processed/reciprocal_space/weight"]
 
         return aggregated_data_file
 
