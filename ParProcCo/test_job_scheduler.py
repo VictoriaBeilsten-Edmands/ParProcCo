@@ -1,18 +1,20 @@
-import drmaa2 as drmaa2
-from datetime import datetime
-from datetime import timedelta
+from __future__ import annotations
+
 import getpass
 import logging
 import os
+import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Tuple
-import unittest
 
+import drmaa2 as drmaa2
 from job_scheduler import JobScheduler
 
 
-def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str], List[List[str]]]:
+def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str],
+                                                                                List[List[str]]]:
     file_name = "test_raw_data.txt"
     input_file_path = Path(working_directory) / file_name
     with open(input_file_path, "w") as f:
@@ -194,7 +196,7 @@ class TestJobScheduler(unittest.TestCase):
                 JobScheduler(working_directory, cluster_output_dir, "bad_project_name", "medium.q")
             self.assertTrue("bad_project_name must be in list of project names" in str(context.exception))
 
-    def test_check_queue_list(self):
+    def test_check_queue_list(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 

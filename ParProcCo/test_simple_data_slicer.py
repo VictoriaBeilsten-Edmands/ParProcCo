@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import getpass
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import logging
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from simple_data_slicer import SimpleDataSlicer
 

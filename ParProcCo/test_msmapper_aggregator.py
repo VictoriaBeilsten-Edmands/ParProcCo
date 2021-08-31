@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import getpass
+import logging
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import logging
-import h5py
-import numpy as np
-import unittest
 from typing import List
 
+import h5py
+import numpy as np
 from msmapper_aggregator import MSMAggregator
 
 

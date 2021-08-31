@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import getpass
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import logging
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import List
 
 from simple_data_aggregator import SimpleDataAggregator

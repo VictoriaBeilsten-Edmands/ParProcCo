@@ -1,8 +1,11 @@
-import h5py
+from __future__ import annotations
+
 from datetime import datetime, timezone
-import numpy as np
 from pathlib import Path
 from typing import List, Tuple
+
+import h5py
+import numpy as np
 
 
 class MSMAggregator:
@@ -49,7 +52,8 @@ class MSMAggregator:
             process = f.create_group("processed/process")
             process.attrs["NX_class"] = "NXprocess"
             f.create_dataset("processed/process/date", data=str(datetime.now(timezone.utc)))
-            f.create_dataset("processed/process/parameters", data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
+            f.create_dataset("processed/process/parameters",
+                             data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
             f.create_dataset("processed/process/program", data="ParProcCo")
             f.create_dataset("processed/process/version", data="1.0")
 
@@ -110,7 +114,8 @@ class MSMAggregator:
             self.hkl_spacing.append(spacing)
             length = int((self.hkl_maxs[i] - self.hkl_mins[i]) / self.hkl_spacing[i]) + 1
             self.accumulator_hkl_lengths.append(length)
-            ranges = [(round((x * self.hkl_spacing[i]), 4) + self.hkl_mins[i]) for x in range(self.accumulator_hkl_lengths[i])]
+            ranges = [(round((x * self.hkl_spacing[i]), 4) + self.hkl_mins[i])
+                      for x in range(self.accumulator_hkl_lengths[i])]
             self.accumulator_hkl_ranges.append(ranges)
 
         self.accumulator_volume = np.zeros(self.accumulator_hkl_lengths)

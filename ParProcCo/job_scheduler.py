@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import logging
 import os
-from pathlib import Path
-from datetime import timedelta
-from datetime import datetime
-from typing import Dict, List
-import drmaa2 as drmaa2
-from drmaa2 import JobSession, JobTemplate, Drmaa2Exception
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Union
+
+import drmaa2 as drmaa2
+from drmaa2 import Drmaa2Exception, JobSession, JobTemplate
 
 
 @dataclass
@@ -16,12 +18,13 @@ class StatusInfo:
     state: drmaa2.JobState
     input_path: Path
     slice_param: List[str]
-    final_state: str = None
+    final_state: Union[str, None] = None
 
 
 class JobScheduler:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16, timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16,
+                 timeout: timedelta = timedelta(hours=2)):
         """JobScheduler can be used for cluster job submissions"""
         self.working_directory = Path(working_directory)
         self.cluster_output_dir = Path(cluster_output_dir)
@@ -68,6 +71,7 @@ class JobScheduler:
             js.close()
         except IOError:
             logging.error(f"{jobscript} cannot be opened\n")
+            raise
 
         else:
             return jobscript
@@ -115,7 +119,8 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def _create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int, job_name: str = "job_scheduler_testing") -> JobTemplate:
+    def _create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int,
+                         job_name: str = "job_scheduler_testing") -> JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
