@@ -36,7 +36,8 @@ class TestDataSlicer(unittest.TestCase):
     def test_renormalise(self) -> None:
         output_file_paths = [Path("/scratch/victoria/i07-394487-applied-halfa.nxs"),
                              Path("/scratch/victoria/i07-394487-applied-halfb.nxs")]
-        aggregator = MSMAggregator(2)
+        aggregator = MSMAggregator()
+        aggregator._check_total_slices(2, output_file_paths)
         aggregator._renormalise(output_file_paths)
         total_volume = aggregator.total_volume
         total_weights = aggregator.accumulator_weights
@@ -65,8 +66,8 @@ class TestDataSlicer(unittest.TestCase):
             if not cluster_output_dir.exists():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
 
-            aggregator = MSMAggregator(2)
-            aggregator_filepath = aggregator.aggregate(cluster_output_dir, sliced_data_files)
+            aggregator = MSMAggregator()
+            aggregator_filepath = aggregator.aggregate(2, cluster_output_dir, sliced_data_files)
             total_volume = aggregator.total_volume
             total_weights = aggregator.accumulator_weights
             with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:

@@ -3,13 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
+from job_controller import SlicerInterface
 
-class SimpleDataSlicer:
+
+class SimpleDataSlicer(SlicerInterface):
 
     def __init__(self):
+        """Overrides SlicerInterface.__init__"""
         pass
 
     def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List:
+        """Overrides SlicerInterface.slice"""
         if type(number_jobs) is not int:
             raise TypeError(f"number_jobs is {type(number_jobs)}, should be int\n")
 

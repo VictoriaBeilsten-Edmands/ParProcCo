@@ -102,7 +102,7 @@ class TestJobController(unittest.TestCase):
             jc = JobController(working_directory, cluster_output_dir, project="b24", queue="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
-                jc.run(SimpleDataSlicer(), SimpleDataAggregator(4), input_file_path, 4, jobscript)
+                jc.run(SimpleDataSlicer(), SimpleDataAggregator(), input_file_path, 4, jobscript)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
     def test_end_to_end(self) -> None:
@@ -114,7 +114,7 @@ class TestJobController(unittest.TestCase):
             input_file_path = setup_data_file(working_directory)
 
             jc = JobController(working_directory, cluster_output_dir, project="b24", queue="medium.q")
-            agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(4), input_file_path, 4, jobscript)
+            agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(), input_file_path, 4, jobscript)
 
             self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
             with open(agg_data_path, "r") as af:

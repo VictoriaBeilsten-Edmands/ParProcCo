@@ -45,8 +45,8 @@ class TestDataSlicer(unittest.TestCase):
 
             self.assertEqual(written_data, [["0\n", "8\n"], ["2\n", "10\n"], ["4\n", "12\n"], ["6\n", "14\n"]])
 
-            aggregator = SimpleDataAggregator(4)
-            agg_data_path = aggregator.aggregate(cluster_output_dir, sliced_data_files)
+            aggregator = SimpleDataAggregator()
+            agg_data_path = aggregator.aggregate(4, cluster_output_dir, sliced_data_files)
             with open(agg_data_path, "r") as af:
                 agg_data = af.readlines()
 

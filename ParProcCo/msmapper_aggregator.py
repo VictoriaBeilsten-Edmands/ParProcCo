@@ -6,12 +6,14 @@ from typing import List, Tuple
 
 import h5py
 import numpy as np
+from job_controller import AggregatorInterface
 
 
-class MSMAggregator:
+class MSMAggregator(AggregatorInterface):
 
-    def __init__(self, total_slices: int) -> None:
-
+    def __init__(self) -> None:
+        """Overrides AggregatorInterface.__init__"""
+        self.total_slices: int
         self.output_data_files: List[Path]
         self.hkl_spacing: List
         self.accumulator_hkl_lengths: List
@@ -21,15 +23,22 @@ class MSMAggregator:
         self.accumulator_weights: np.ndarray
         self.total_volume = np.ndarray
 
+    def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
+        """Overrides AggregatorInterface.aggregate"""
+        self._check_total_slices(total_slices, output_data_files)
+        self._renormalise(output_data_files)
+        aggregated_data_file = self._write_aggregation_file(aggregation_output_dir, output_data_files)
+        return aggregated_data_file
+
+    def _check_total_slices(self, total_slices: int, output_data_files: List[Path]) -> None:
         if type(total_slices) is int:
             self.total_slices = total_slices
         else:
             raise TypeError(f"total_slices is {type(total_slices)}, should be int\n")
 
-    def aggregate(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
-        self._renormalise(output_data_files)
-        aggregated_data_file = self._write_aggregation_file(aggregation_output_dir, output_data_files)
-        return aggregated_data_file
+        if len(output_data_files) != self.total_slices:
+            raise ValueError(
+                f"Number of output files {len(output_data_files)} must equal total_slices {self.total_slices}")
 
     def _renormalise(self, output_data_files: List[Path]) -> None:
         self.output_data_files = output_data_files
