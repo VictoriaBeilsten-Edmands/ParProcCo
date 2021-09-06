@@ -187,22 +187,21 @@ class JobScheduler:
                 logging.error(f"Failed to get job information for job {job.id} processing file", exc_info=True)
                 raise
 
-            self.job_history[self.batch_number][job.id] = StatusInfo(ji, js, filename, slice_param)
-
             # Check job states against expected possible options:
+            status_info = StatusInfo(ji, js, filename, slice_param)
             if js == drmaa2.JobState.UNDETERMINED:  # Lost contact?
-                self.job_history[self.batch_number][job.id].final_state = "UNDETERMINED"
+                status_info.final_state = "UNDETERMINED"
                 logging.warning(f"Job state undetermined for processing file {filename}. job info: {ji}")
 
             elif js == drmaa2.JobState.FAILED:
-                self.job_history[self.batch_number][job.id].final_state = "FAILED"
+                status_info.final_state = "FAILED"
                 logging.error(
                     f"drmaa job {job.id} processing file filename failed."
                     f" Terminating signal: {ji.terminating_signal}."
                 )
 
             elif not output.exists():
-                self.job_history[self.batch_number][job.id].final_state = "NO_OUTPUT"
+                status_info.final_state = "NO_OUTPUT"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
                     f" output file {output}"
@@ -210,7 +209,7 @@ class JobScheduler:
                 )
 
             elif not self.timestamp_ok(output):
-                self.job_history[self.batch_number][job.id].final_state = "OLD_OUTPUT_FILE"
+                status_info.final_state = "OLD_OUTPUT_FILE"
                 logging.error(
                     f"drmaa job {job.id} processing file {filename} with slice parameters {slice_param} has not created"
                     f" a new output file {output}"
@@ -219,17 +218,19 @@ class JobScheduler:
 
             elif js == drmaa2.JobState.DONE:
                 self.job_completion_status["".join(slice_param)] = True
-                self.job_history[self.batch_number][job.id].final_state = "SUCCESS"
+                status_info.final_state = "SUCCESS"
                 logging.info(
                     f"Job {job.id} processing file {filename} with slice parameters {slice_param} completed"
                     f" successfully after {ji.wallclock_time}."
                     f" CPU time={timedelta(seconds=float(ji.cpu_time))}, slots={ji.slots}"
                 )
             else:
-                self.job_history[self.batch_number][job.id].final_state = "UNSPECIFIED"
+                status_info.final_state = "UNSPECIFIED"
                 logging.error(
                     f"Unexpected job state for file {filename} with slice parameters {slice_param}, job info: {ji}"
                 )
+
+            self.job_history[self.batch_number][job.id] = status_info
 
     def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
