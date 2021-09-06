@@ -88,10 +88,11 @@ class JobScheduler:
             return True
         return False
 
-    def run(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def run(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> bool:
         self.job_history[self.batch_number] = {}
         self.job_completion_status = {"".join(slice_param): False for slice_param in slice_params}
         self._run_and_monitor(jobscript, input_path, slice_params)
+        return self.get_success()
 
     def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         jobscript = self.check_jobscript(jobscript)
@@ -240,16 +241,15 @@ class JobScheduler:
         return killed_jobs
 
     def rerun_killed_jobs(self, processing_script: Path):
-        if not self.get_success():
-            job_history = self.job_history
-            failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
+        job_history = self.job_history
+        failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
 
-            if any(self.job_completion_status.values()):
-                killed_jobs = self.filter_killed_jobs(failed_jobs)
-                killed_jobs_inputs = [job["input_path"] for job in killed_jobs]
-                if not all(x == killed_jobs_inputs[0] for x in killed_jobs_inputs):
-                    raise RuntimeError(f"input paths in killed_jobs must all be the same\n")
-                slice_params = [job["slice_param"] for job in killed_jobs]
-                self.resubmit_jobs(processing_script, killed_jobs_inputs[0], slice_params)
-            else:
-                raise RuntimeError(f"All jobs failed\n")
+        if any(self.job_completion_status.values()):
+            killed_jobs = self.filter_killed_jobs(failed_jobs)
+            killed_jobs_inputs = [job["input_path"] for job in killed_jobs]
+            if not all(x == killed_jobs_inputs[0] for x in killed_jobs_inputs):
+                raise RuntimeError(f"input paths in killed_jobs must all be the same\n")
+            slice_params = [job["slice_param"] for job in killed_jobs]
+            self.resubmit_jobs(processing_script, killed_jobs_inputs[0], slice_params)
+        else:
+            raise RuntimeError(f"All jobs failed\n")

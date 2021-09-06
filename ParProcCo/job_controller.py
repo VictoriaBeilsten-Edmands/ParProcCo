@@ -8,18 +8,12 @@ from job_scheduler import JobScheduler
 
 class SlicerInterface:
 
-    def __init__(self):
-        raise NotImplementedError
-
     def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List:
         """Takes an input data file and returns a list of slice parameters."""
         raise NotImplementedError
 
 
 class AggregatorInterface:
-
-    def __init__(self):
-        raise NotImplementedError
 
     def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         """Aggregates data from multiple output files into one"""
@@ -50,9 +44,9 @@ class JobController:
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
-        self.scheduler.run(processing_script, input_path, slice_params)
-
-        self.scheduler.rerun_killed_jobs(processing_script)
+        success = self.scheduler.run(processing_script, input_path, slice_params)
+        if not success:
+            self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)
         return aggregated_file_path
 

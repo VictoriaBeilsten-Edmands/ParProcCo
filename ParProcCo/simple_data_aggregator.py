@@ -9,7 +9,6 @@ from job_controller import AggregatorInterface
 class SimpleDataAggregator(AggregatorInterface):
 
     def __init__(self) -> None:
-        """Overrides AggregatorInterface.__init__"""
         pass
 
     def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
