@@ -63,9 +63,9 @@ class MSMAggregator(AggregatorInterface):
     def _get_nxdata(self):
         data_file = self.output_data_files[0]
         with h5py.File(data_file, "r") as root:
-            self.nxentry_name = self._get_default_nxgroup(root, b'NXentry')
+            self.nxentry_name = self._get_default_nxgroup(root, b'NXentry').decode()
             nxentry = root[self.nxentry_name]
-            self.nxdata_name = self._get_default_nxgroup(nxentry, b'NXdata')
+            self.nxdata_name = self._get_default_nxgroup(nxentry, b'NXdata').decode()
             nxdata = nxentry[self.nxdata_name]
             self._get_default_signals_and_axes(nxdata)
 
@@ -104,7 +104,7 @@ class MSMAggregator(AggregatorInterface):
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Dataset) -> None:
         if "auxiliary_signals" in nxdata.attrs:
-            aux_signal_names = nxdata.attrs["auxiliary_signals"]
+            aux_signal_names = [name.decode() for name in nxdata.attrs["auxiliary_signals"]]
             assert(len(aux_signal_names) == 1)
             self.aux_signal_name = aux_signal_names[0]
             self.renormalisation = True
@@ -113,9 +113,9 @@ class MSMAggregator(AggregatorInterface):
             self.renormalisation = False
 
         if "signal" in nxdata.attrs:
-            self.signal_name = nxdata.attrs["signal"]
+            self.signal_name = nxdata.attrs["signal"].decode()
             if "axes" in nxdata.attrs:
-                self.axes_names = nxdata.attrs["axes"]
+                self.axes_names = [name.decode() for name in nxdata.attrs["axes"]]
                 # TODO: add logic to create axes if not in file (from integer sequence starting at 0)
                 return
         raise KeyError
@@ -183,33 +183,36 @@ class MSMAggregator(AggregatorInterface):
 
         with h5py.File(aggregated_data_file, "w") as f:
             # TODO: change this to use default group names
-            processed = f.create_group("processed")
+            processed = f.create_group(self.nxentry_name)
             processed.attrs["NX_class"] = "NXentry"
-            processed.attrs["default"] = "reciprocal_space"
+            processed.attrs["default"] = self.nxdata_name
 
-            process = f.create_group("processed/process")
+            process_name = "/".join((self.nxentry_name, "process"))
+            process = f.create_group(process_name)
             process.attrs["NX_class"] = "NXprocess"
-            f.create_dataset("processed/process/date", data=str(datetime.now(timezone.utc)))
-            f.create_dataset("processed/process/parameters",
+            f.create_dataset("/".join((process_name, "date")), data=str(datetime.now(timezone.utc)))
+            f.create_dataset("/".join((process_name, "parameters")),
                              data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
-            f.create_dataset("processed/process/program", data="ParProcCo")
-            f.create_dataset("processed/process/version", data=__version__)
+            f.create_dataset("/".join((process_name, "program")), data="ParProcCo")
+            f.create_dataset("/".join((process_name, "version")), data=__version__)
 
-            reciprocal_space = f.create_group("processed/reciprocal_space")
-            reciprocal_space.attrs["NX_class"] = "NXdata"
-            reciprocal_space.attrs["auxillary_signals"] = "weight"
-            reciprocal_space.attrs["axes"] = ["h-axis", "k-axis", "l-axis"]
-            reciprocal_space.attrs["signals"] = "volume"
-            for i, axis in enumerate(["h", "k", "l"]):
-                reciprocal_space.attrs[f"{axis}-axis_indices"] = i
-                f.create_dataset(f"processed/reciprocal_space/{axis}-axis", data=self.accumulator_axis_ranges[i])
-            f.create_dataset("processed/reciprocal_space/volume", data=self.total_volume)
-            f.create_dataset("processed/reciprocal_space/weight", data=self.accumulator_weights)
+            data_group_name = "/".join((self.nxentry_name, self.nxdata_name))
+            data_group = f.create_group(data_group_name)
+            data_group.attrs["NX_class"] = "NXdata"
+            data_group.attrs["auxillary_signals"] = self.aux_signal_name
+            data_group.attrs["axes"] = self.axes_names
+            data_group.attrs["signal"] = self.signal_name
+            for i, axis in enumerate(self.axes_names):
+                data_group.attrs[f"{axis}_indices"] = i
+                f.create_dataset("/".join((data_group_name, f"{axis}")), data=self.accumulator_axis_ranges[i])
+            f.create_dataset("/".join((data_group_name, self.signal_name)), data=self.total_volume)
+            if self.renormalisation:
+                f.create_dataset("/".join((data_group_name, self.aux_signal_name)), data=self.accumulator_weights)
 
-            f.attrs["default"] = "processed"
+            f.attrs["default"] = self.nxentry_name
 
             for i, filepath in enumerate(output_data_files):
-                f[f"entry{i}"] = h5py.ExternalLink(str(filepath), "/processed")
+                f[f"entry{i}"] = h5py.ExternalLink(str(filepath), self.nxentry_name)
 
             binoculars = f.create_group("binoculars")
             binoculars.attrs["type"] = "space"
@@ -222,7 +225,8 @@ class MSMAggregator(AggregatorInterface):
                 axis_dataset = [i, axis_min, axis_max, self.axes_spacing[i], axis_min * scaling, axis_max * scaling]
                 f.create_dataset(f"binoculars/axes/{axis}", data=axis_dataset)
 
-            binoculars["counts"] = f["processed/reciprocal_space/volume"]
-            binoculars["contributions"] = f["processed/reciprocal_space/weight"]
+            binoculars["counts"] = f["/".join((data_group_name, self.signal_name))]
+            if self.renormalisation:
+                binoculars["contributions"] = f["/".join((data_group_name, self.aux_signal_name))]
 
         return aggregated_data_file
