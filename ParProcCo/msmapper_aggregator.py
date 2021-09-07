@@ -6,6 +6,7 @@ from typing import List, Tuple, Union
 
 import h5py
 import numpy as np
+from ParProcCo import __version__
 from job_controller import AggregatorInterface
 
 
@@ -192,7 +193,7 @@ class MSMAggregator(AggregatorInterface):
             f.create_dataset("processed/process/parameters",
                              data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
             f.create_dataset("processed/process/program", data="ParProcCo")
-            f.create_dataset("processed/process/version", data="1.0")
+            f.create_dataset("processed/process/version", data=__version__)
 
             reciprocal_space = f.create_group("processed/reciprocal_space")
             reciprocal_space.attrs["NX_class"] = "NXdata"
