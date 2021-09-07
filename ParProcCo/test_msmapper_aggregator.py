@@ -47,15 +47,32 @@ class TestDataSlicer(unittest.TestCase):
         np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
         np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
 
-    # TODO: add tests
-    def test_fill_axes_fields(self) -> None:
-        pass
+    def test_check_total_slices_not_int(self) -> None:
+        total_slices = "1"
+        output_data_files = [Path("file/path/a"), Path("file/path/b")]
+        aggregator = MSMAggregator()
 
-    def test_initialise_accumulator_arrays(self) -> None:
-        pass
+        with self.assertRaises(TypeError) as context:
+            aggregator._check_total_slices(total_slices, output_data_files)
+        self.assertTrue("total_slices is <class 'str'>, should be int" in str(context.exception))
+        self.assertRaises(AttributeError, lambda: aggregator.total_slices)
 
-    def test_accumulate_volumes(self) -> None:
-        pass
+    def test_check_total_slices_length_wrong(self) -> None:
+        total_slices = 2
+        output_data_files = [Path("file/path/a")]
+        aggregator = MSMAggregator()
+
+        with self.assertRaises(ValueError) as context:
+            aggregator._check_total_slices(total_slices, output_data_files)
+        self.assertTrue("Number of output files 1 must equal total_slices 2" in str(context.exception))
+        self.assertEqual(total_slices, aggregator.total_slices)
+
+    def test_check_total_slices(self) -> None:
+        total_slices = 2
+        output_data_files = [Path("file/path/a"), Path("file/path/b")]
+        aggregator = MSMAggregator()
+        aggregator._check_total_slices(total_slices, output_data_files)
+        self.assertEqual(total_slices, aggregator.total_slices)
 
     def test_write_aggregation_file(self) -> None:
         output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
