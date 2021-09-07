@@ -18,6 +18,7 @@ class StatusInfo:
     state: drmaa2.JobState
     input_path: Path
     slice_param: List[str]
+    terminating_signal: Union[str, None] = None
     final_state: Union[str, None] = None
 
 
