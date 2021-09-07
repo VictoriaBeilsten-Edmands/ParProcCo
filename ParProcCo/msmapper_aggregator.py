@@ -122,26 +122,16 @@ class MSMAggregator(AggregatorInterface):
     def _fill_axes_fields(self) -> None:
         self.axes_mins = [np.nan] * self.data_dimensions
         self.axes_maxs = [np.nan] * self.data_dimensions
-        self._axes_starts_stops = [[] for i in range(self.data_dimensions)]
+        self._axes_starts_stops = [[] for _ in range(self.data_dimensions)]
 
-        for i, data_file in enumerate(self.output_data_files):
+        for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
                 # TODO: check default dataset is the same in all files
                 axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
-            # TODO: add spacing check
-            #self._check_spacing(axes)
             for j, axis in enumerate(axes):
                 self.axes_mins[j] = np.nanmin([np.nanmin(axis), self.axes_mins[j]])
                 self.axes_maxs[j] = np.nanmax([np.nanmax(axis), self.axes_maxs[j]])
                 self._axes_starts_stops[j].append([axis[0], axis[-1]])
-
-    def _check_spacing(self, axes: List[np.ndarry]):
-        # TODO, fix this
-        # generate expected spacings and check against axes
-        for i, axis in enumerate(axes):
-            expected_values = np.arange(start=round(axis[0], 4), stop=round(axis[-1] + self.axes_spacing[i], 4), step=self.axes_spacing[i])
-            if not np.allclose(expected_values, axis):
-                raise ValueError
 
     def _initialise_accumulator_arrays(self) -> None:
         self.accumulator_axis_lengths = []
