@@ -29,33 +29,27 @@ class TestDataSlicer(unittest.TestCase):
             logging.debug(f"Making directory {self.base_dir}")
             Path(self.base_dir).mkdir(exist_ok=True)
 
-    def test_slice_params(self) -> None:
+    def test_slices(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_file_path = setup_data_file(working_directory)
 
             slicer = SimpleDataSlicer()
-            slice_params = slicer.slice(input_file_path, 4, stop=8)
+            slices = slicer.slice(input_file_path, 4, stop=8)
 
-            self.assertEqual(len(slice_params), 4)
+            self.assertEqual(len(slices), 4)
 
-            self.assertEqual(slice_params, [["0:8:4"],
-                                            ["1:8:4"],
-                                            ["2:8:4"],
-                                            ["3:8:4"]])
+            self.assertEqual(slices, [slice(0, 8, 4), slice(1, 8, 4), slice(2, 8, 4), slice(3, 8, 4)])
 
     def test_no_stop(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_file_path = setup_data_file(working_directory)
 
             slicer = SimpleDataSlicer()
-            slice_params = slicer.slice(input_file_path, 4)
+            slices = slicer.slice(input_file_path, 4)
 
-            self.assertEqual(len(slice_params), 4)
+            self.assertEqual(len(slices), 4)
 
-            self.assertEqual(slice_params, [["0:11:4"],
-                                            ["1:11:4"],
-                                            ["2:11:4"],
-                                            ["3:11:4"]])
+            self.assertEqual(slices, [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)])
 
     def test_stop_not_int(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -82,35 +76,24 @@ class TestDataSlicer(unittest.TestCase):
             input_file_path = setup_data_file(working_directory)
 
             slicer = SimpleDataSlicer()
-            slice_params = slicer.slice(input_file_path, 20)
+            slices = slicer.slice(input_file_path, 20)
 
-            self.assertEqual(len(slice_params), 11)
+            self.assertEqual(len(slices), 11)
 
-            self.assertEqual(slice_params, [["0:11:11"],
-                                            ["1:11:11"],
-                                            ["2:11:11"],
-                                            ["3:11:11"],
-                                            ["4:11:11"],
-                                            ["5:11:11"],
-                                            ["6:11:11"],
-                                            ["7:11:11"],
-                                            ["8:11:11"],
-                                            ["9:11:11"],
-                                            ["10:11:11"]])
+            self.assertEqual(slices, [slice(0, 11, 11), slice(1, 11, 11), slice(2, 11, 11), slice(3, 11, 11),
+                                      slice(4, 11, 11), slice(5, 11, 11), slice(6, 11, 11), slice(7, 11, 11),
+                                      slice(8, 11, 11), slice(9, 11, 11), slice(10, 11, 11)])
 
     def test_stop_too_big(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_file_path = setup_data_file(working_directory)
 
             slicer = SimpleDataSlicer()
-            slice_params = slicer.slice(input_file_path, 4, stop=20)
+            slices = slicer.slice(input_file_path, 4, stop=20)
 
-            self.assertEqual(len(slice_params), 4)
+            self.assertEqual(len(slices), 4)
 
-            self.assertEqual(slice_params, [["0:11:4"],
-                                            ["1:11:4"],
-                                            ["2:11:4"],
-                                            ["3:11:4"]])
+            self.assertEqual(slices, [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)])
 
 
 if __name__ == '__main__':

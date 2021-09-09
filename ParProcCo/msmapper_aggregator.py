@@ -158,25 +158,22 @@ class MSMAggregator(AggregatorInterface):
                 axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
 
             axes_lengths = volumes_array.shape
-            starts, stops = self._get_starts_and_stops(axes, axes_lengths)
-
+            slices = self._get_starts_and_stops(axes, axes_lengths)
             if self.renormalisation:
                 volumes_array = np.multiply(volumes_array, weights_array)
+            self.accumulator_volume[slices] += volumes_array
+            self.accumulator_weights[slices] += weights_array
 
-            self.accumulator_volume[starts[0]:stops[0], starts[1]:stops[1], starts[2]:stops[2]] += volumes_array
-            self.accumulator_weights[starts[0]:stops[0], starts[1]:stops[1], starts[2]:stops[2]] += weights_array
-
-    def _get_starts_and_stops(self, axes: List, axes_lengths: List) -> Tuple[List[int], List[int]]:
-        starts = []
-        stops = []
+    def _get_starts_and_stops(self, axes: List, axes_lengths: List) -> List[slice]:
+        slices = []
         for count, value in enumerate(axes):
             start = int((value[0] - self.axes_mins[count]) / self.axes_spacing[count])
             stop = axes_lengths[count] - start
-            starts.append(start)
-            stops.append(stop)
+            slices.append(slice(start, stop))
             if not np.allclose(value, self.accumulator_axis_ranges[count][start:stop]):
                 raise RuntimeError
-        return starts, stops
+        assert(len(slices) == self.data_dimensions)
+        return slices
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
@@ -218,7 +215,8 @@ class MSMAggregator(AggregatorInterface):
             binoculars.attrs["type"] = "space"
 
             f.create_group("binoculars/axes")
-            for i, axis in enumerate(["H", "K", "L"]):
+            binocular_axes = [axis.split("-axis")[0].upper() for axis in self.axes_names]
+            for i, axis in enumerate(binocular_axes):
                 axis_min = self.axes_mins[i]
                 axis_max = self.axes_maxs[i]
                 scaling = (self.accumulator_axis_lengths[i] - 1) / (axis_max - axis_min)

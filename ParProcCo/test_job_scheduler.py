@@ -14,18 +14,18 @@ from job_scheduler import JobScheduler
 
 
 def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str],
-                                                                                List[List[str]]]:
+                                                                                List[slice]]:
     file_name = "test_raw_data.txt"
     input_file_path = Path(working_directory) / file_name
     with open(input_file_path, "w") as f:
         f.write("0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n")
-        slice_params = []
+        slices = []
     for i in range(4):
-        slice_params.append([f"{i}:8:4"])
+        slices.append(slice(i, 8, 4))
 
     output_file_paths = [Path(cluster_output_dir) / f"out_{input_file_path.stem}_{i}.txt" for i in range(4)]
     output_nums = ["0\n8\n", "2\n10\n", "4\n12\n", "6\n14\n"]
-    return input_file_path, output_file_paths, output_nums, slice_params
+    return input_file_path, output_file_paths, output_nums, slices
 
 
 def setup_jobscript(working_directory: str) -> Path:
@@ -109,12 +109,12 @@ class TestJobScheduler(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
-            input_path, output_paths, out_nums, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_path, output_paths, out_nums, slices = setup_data_files(working_directory, cluster_output_dir)
             jobscript = setup_jobscript(working_directory)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.run(jobscript, input_path, slice_params)
+            js.run(jobscript, input_path, slices)
 
             # check output files
             for output_file, expected_nums in zip(output_paths, out_nums):
@@ -131,18 +131,18 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
             jobscript = setup_jobscript(working_directory)
 
-            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
             js.job_history[js.batch_number] = {}
-            js.job_completion_status = {"".join(slice_param): False for slice_param in slice_params}
+            js.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
             js.check_jobscript(jobscript)
             js.job_details = []
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js._run_jobs(session, jobscript, input_file_path, slice_params)
+            js._run_jobs(session, jobscript, input_file_path, slices)
             js._wait_for_jobs(session)
             js.start_time = datetime.now()
             js._report_job_info()
@@ -242,12 +242,12 @@ class TestJobScheduler(unittest.TestCase):
             with open(jobscript, "a+") as f:
                 f.write("import time\ntime.sleep(5)\n")
 
-            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
                               timeout=timedelta(seconds=1))
-            js.run(jobscript, input_file_path, slice_params)
+            js.run(jobscript, input_file_path, slices)
             jh = js.job_history
             self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
             returned_jobs = jh[0]
@@ -262,11 +262,11 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "bad_jobscript_name.sh"
 
             with self.assertRaises(FileNotFoundError) as context:
-                js.run(jobscript, input_file_path, slice_params)
+                js.run(jobscript, input_file_path, slices)
 
             self.assertTrue(f"{jobscript} does not exist\n" in str(context.exception))
 
@@ -276,14 +276,14 @@ class TestJobScheduler(unittest.TestCase):
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
-            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "test_bad_permissions.sh"
             f = open(jobscript, "x")
             f.close()
             os.chmod(jobscript, 0o666)
 
             with self.assertRaises(PermissionError) as context:
-                js.run(jobscript, input_file_path, slice_params)
+                js.run(jobscript, input_file_path, slices)
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 
@@ -292,14 +292,14 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_file_path, _, _, slice_params = setup_data_files(working_directory, cluster_output_dir)
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
             jobscript = Path(working_directory) / "test_bad_read_permissions.sh"
             f = open(jobscript, "x")
             f.close()
             os.chmod(jobscript, 0o333)
 
             with self.assertRaises(PermissionError) as context:
-                js.run(jobscript, input_file_path, slice_params)
+                js.run(jobscript, input_file_path, slices)
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 

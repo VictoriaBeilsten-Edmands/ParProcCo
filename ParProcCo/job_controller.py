@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
+from typing import List
 
 from job_scheduler import JobScheduler
 
 
 class SlicerInterface:
 
-    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List:
+    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List[slice]:
         """Takes an input data file and returns a list of slice parameters."""
         raise NotImplementedError
 
@@ -40,11 +41,11 @@ class JobController:
             number_jobs: int, processing_script: Path) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
-        slice_params = self.data_slicer.slice(input_path, number_jobs)
+        slices = self.data_slicer.slice(input_path, number_jobs)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, input_path, slice_params)
+        success = self.scheduler.run(processing_script, input_path, slices)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)

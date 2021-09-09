@@ -89,23 +89,24 @@ class JobScheduler:
             return True
         return False
 
-    def run(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> bool:
+    def run(self, jobscript: Path, input_path: Path, slices: List[slice]) -> bool:
         self.job_history[self.batch_number] = {}
-        self.job_completion_status = {"".join(slice_param): False for slice_param in slice_params}
-        self._run_and_monitor(jobscript, input_path, slice_params)
+        self.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
+        self._run_and_monitor(jobscript, input_path, slices)
         return self.get_success()
 
-    def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def _run_and_monitor(self, jobscript: Path, input_path: Path, slices: List[slice]) -> None:
         jobscript = self.check_jobscript(jobscript)
         self.job_details: List[List] = []
 
         session = JobSession()  # Automatically destroyed when it is out of scope
-        self._run_jobs(session, jobscript, input_path, slice_params)
+        self._run_jobs(session, jobscript, input_path, slices)
         self._wait_for_jobs(session)
         self._report_job_info()
 
-    def _run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def _run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slices: List[slice]) -> None:
         logging.debug(f"Running jobs on cluster for {input_path}")
+        slice_params = [[f"{s.start}:{s.stop}:{s.step}"] for s in slices]
         try:
             # Run all input paths in parallel:
             for i, slice_param in enumerate(slice_params):

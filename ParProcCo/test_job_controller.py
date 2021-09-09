@@ -35,7 +35,7 @@ def setup_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", help="str: path to input file", type=str)
     parser.add_argument("--output_path", help="str: path to output file", type=str)
-    parser.add_argument("-I", help="str: slice selection of images per input file (as start:stop:step)")
+    parser.add_argument("-I", help="str: slice selection of images per input file (as slice(start, stop, step))")
     return parser
 
 

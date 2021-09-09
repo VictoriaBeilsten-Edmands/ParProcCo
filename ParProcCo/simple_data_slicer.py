@@ -11,12 +11,12 @@ class SimpleDataSlicer(SlicerInterface):
     def __init__(self):
         pass
 
-    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List:
+    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List[slice]:
         """Overrides SlicerInterface.slice"""
         if type(number_jobs) is not int:
             raise TypeError(f"number_jobs is {type(number_jobs)}, should be int\n")
 
-        file_length = sum(1 for line in open(input_data_file))
+        file_length = sum(1 for _ in open(input_data_file))
 
         if stop is None:
             stop = file_length
@@ -26,7 +26,5 @@ class SimpleDataSlicer(SlicerInterface):
             stop = min(stop, file_length)
 
         number_jobs = min(stop, number_jobs)
-
-        slice_params = [[f"{i}:{stop}:{number_jobs}"]
-                        for i in range(number_jobs)]
-        return slice_params
+        slices = [slice(i, stop, number_jobs) for i in range(number_jobs)]
+        return slices
