@@ -14,11 +14,12 @@ class MSMAggregator(AggregatorInterface):
 
     def __init__(self) -> None:
         self._axes_starts_stops: List[List]
+        self.accumulate_aux_signals: bool
         self.accumulator_axis_lengths: List
         self.accumulator_axis_ranges: List
         self.accumulator_volume: np.ndarray
         self.accumulator_weights: np.ndarray
-        self.aux_signal_name: Union[None, str]
+        self.aux_signal_names: Union[None, List[str]]
         self.axes_maxs: List
         self.axes_mins: List
         self.axes_names: List[str]
@@ -57,9 +58,6 @@ class MSMAggregator(AggregatorInterface):
         self._initialise_accumulator_arrays()
         self._accumulate_volumes()
 
-        self.total_volume = self.accumulator_volume / self.accumulator_weights
-        self.total_volume[np.isnan(self.total_volume)] = 0
-
     def _get_nxdata(self):
         data_file = self.output_data_files[0]
         with h5py.File(data_file, "r") as root:
@@ -79,15 +77,12 @@ class MSMAggregator(AggregatorInterface):
             assert(signal_dimensions == axes_dimensions)
             self.data_dimensions = signal_dimensions
             self.data_shape = signal_shape
-            self.axes_spacing = []
-            for axis in axes:
-                spacing = round((axis[1] - axis[0]), 6)
-                self.axes_spacing.append(spacing)
+            self.axes_spacing = [round((axis[1] - axis[0]), 6) for axis in axes]
 
             if self.renormalisation:
-                aux_signal = nxdata[self.aux_signal_name]
-                assert(len(aux_signal.shape) == self.data_dimensions)
-                assert(aux_signal.shape == self.data_shape)
+                weights = nxdata["weight"]
+                assert(len(weights.shape) == self.data_dimensions)
+                assert(weights.shape == self.data_shape)
 
     def _get_default_nxgroup(self, f: Union[h5py.File, h5py.Group], class_name: str) -> str:
         if "default" in f.attrs:
@@ -103,21 +98,26 @@ class MSMAggregator(AggregatorInterface):
         raise ValueError
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Dataset) -> None:
+        self.renormalisation = False
         if "auxiliary_signals" in nxdata.attrs:
-            aux_signal_names = [name.decode() for name in nxdata.attrs["auxiliary_signals"]]
-            assert(len(aux_signal_names) == 1)
-            self.aux_signal_name = aux_signal_names[0]
-            self.renormalisation = True
+            self.aux_signal_names = [name.decode() for name in nxdata.attrs["auxiliary_signals"]]
+            # TODO: add code to accumulate aux_signals
+            self.accumulate_aux_signals = True
+            if "weight" in self.aux_signal_names:
+                self.renormalisation = True
         else:
-            self.aux_signal_name = None
+            self.aux_signal_names = None
+        if not self.renormalisation:
             self.renormalisation = False
 
         if "signal" in nxdata.attrs:
             self.signal_name = nxdata.attrs["signal"].decode()
-            if "axes" in nxdata.attrs:
-                self.axes_names = [name.decode() for name in nxdata.attrs["axes"]]
-                # TODO: add logic to create axes if not in file (from integer sequence starting at 0)
-                return
+        elif "data" in nxdata.attrs:
+            self.signal_name = nxdata.attrs["data"].decode()
+        if self.signal_name and "axes" in nxdata.attrs:
+            self.axes_names = [name.decode() for name in nxdata.attrs["axes"]]
+            # TODO: add logic to create axes if not in file (from integer sequence starting at 0)
+            return
         raise KeyError
 
     def _fill_axes_fields(self) -> None:
@@ -128,7 +128,9 @@ class MSMAggregator(AggregatorInterface):
         for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
                 # TODO: check default dataset is the same in all files
-                axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
+                data_group_name = "/".join([self.nxentry_name, self.nxdata_name])
+                nx_data_group = f[data_group_name]
+                axes = [np.array(nx_data_group[axis_name]) for axis_name in self.axes_names]
             for j, axis in enumerate(axes):
                 self.axes_mins[j] = np.nanmin([np.nanmin(axis), self.axes_mins[j]])
                 self.axes_maxs[j] = np.nanmax([np.nanmax(axis), self.axes_maxs[j]])
@@ -147,22 +149,28 @@ class MSMAggregator(AggregatorInterface):
             self.accumulator_axis_ranges.append(ranges)
 
         self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
-        self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
+        if self.renormalisation:
+            self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
 
     def _accumulate_volumes(self) -> None:
         for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
                 # volumes and weights are 3d arrays
                 volumes_array = np.array(f[self.nxentry_name][self.nxdata_name][self.signal_name])
-                weights_array = np.array(f[self.nxentry_name][self.nxdata_name][self.aux_signal_name])
                 axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
+                if self.renormalisation:
+                    weights_array = np.array(f[self.nxentry_name][self.nxdata_name]["weight"])
 
             axes_lengths = volumes_array.shape
             slices = self._get_starts_and_stops(axes, axes_lengths)
             if self.renormalisation:
                 volumes_array = np.multiply(volumes_array, weights_array)
+                self.accumulator_weights[slices] += weights_array
             self.accumulator_volume[slices] += volumes_array
-            self.accumulator_weights[slices] += weights_array
+
+        if self.renormalisation:
+            self.total_volume = self.accumulator_volume / self.accumulator_weights
+            self.total_volume[np.isnan(self.total_volume)] = 0
 
     def _get_starts_and_stops(self, axes: List, axes_lengths: List) -> List[slice]:
         slices = []
@@ -196,7 +204,7 @@ class MSMAggregator(AggregatorInterface):
             data_group_name = "/".join((self.nxentry_name, self.nxdata_name))
             data_group = f.create_group(data_group_name)
             data_group.attrs["NX_class"] = "NXdata"
-            data_group.attrs["auxillary_signals"] = self.aux_signal_name
+            data_group.attrs["auxillary_signals"] = "weight"
             data_group.attrs["axes"] = self.axes_names
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
@@ -204,7 +212,7 @@ class MSMAggregator(AggregatorInterface):
                 f.create_dataset("/".join((data_group_name, f"{axis}")), data=self.accumulator_axis_ranges[i])
             f.create_dataset("/".join((data_group_name, self.signal_name)), data=self.total_volume)
             if self.renormalisation:
-                f.create_dataset("/".join((data_group_name, self.aux_signal_name)), data=self.accumulator_weights)
+                f.create_dataset("/".join((data_group_name, "weight")), data=self.accumulator_weights)
 
             f.attrs["default"] = self.nxentry_name
 
@@ -225,6 +233,6 @@ class MSMAggregator(AggregatorInterface):
 
             binoculars["counts"] = f["/".join((data_group_name, self.signal_name))]
             if self.renormalisation:
-                binoculars["contributions"] = f["/".join((data_group_name, self.aux_signal_name))]
+                binoculars["contributions"] = f["/".join((data_group_name, "weight"))]
 
         return aggregated_data_file
