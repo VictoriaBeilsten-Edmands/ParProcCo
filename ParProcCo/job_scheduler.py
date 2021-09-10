@@ -237,13 +237,14 @@ class JobScheduler:
     def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
         self.batch_number += 1
-        self.run(jobscript, input_path, slice_params)
+        slices = [slice(*[int(x) for x in ("".join(slice_param)).split(":")]) for slice_param in slice_params]
+        self.run(jobscript, input_path, slices)
 
-    def filter_killed_jobs(self, jobs: List) -> List:
+    def filter_killed_jobs(self, jobs: List[drmaa2.Job]) -> List[drmaa2.Job]:
         killed_jobs = [job for job in jobs if job["info"].terminating_signal == "SIGKILL"]
         return killed_jobs
 
-    def rerun_killed_jobs(self, processing_script: Path):
+    def rerun_killed_jobs(self, jobscript: Path):
         job_history = self.job_history
         failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
 
@@ -253,6 +254,6 @@ class JobScheduler:
             if not all(x == killed_jobs_inputs[0] for x in killed_jobs_inputs):
                 raise RuntimeError(f"input paths in killed_jobs must all be the same\n")
             slice_params = [job["slice_param"] for job in killed_jobs]
-            self.resubmit_jobs(processing_script, killed_jobs_inputs[0], slice_params)
+            self.resubmit_jobs(jobscript, killed_jobs_inputs[0], slice_params)
         else:
             raise RuntimeError(f"All jobs failed\n")

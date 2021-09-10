@@ -20,7 +20,7 @@ def setup_data_files(working_directory: Path) -> List[Path]:
     return file_paths
 
 
-class TestDataSlicer(unittest.TestCase):
+class TestDataAggregator(unittest.TestCase):
 
     def setUp(self) -> None:
         current_user = getpass.getuser()
