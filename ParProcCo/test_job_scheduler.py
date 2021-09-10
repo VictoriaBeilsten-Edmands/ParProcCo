@@ -287,6 +287,17 @@ class TestJobScheduler(unittest.TestCase):
 
             self.assertTrue(f"{jobscript} must be readable and executable by user\n" in str(context.exception))
 
+    def test_check_jobscript(self) -> None:
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            cluster_output_dir = Path(working_directory) / "cluster_output"
+
+            js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
+
+            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            jobscript = setup_jobscript(working_directory)
+
+            js.run(jobscript, input_file_path, slices)
+
     def test_jobscript_cannot_be_opened(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
