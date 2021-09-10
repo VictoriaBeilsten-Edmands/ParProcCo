@@ -74,6 +74,138 @@ class TestDataSlicer(unittest.TestCase):
         aggregator._check_total_slices(total_slices, output_data_files)
         self.assertEqual(total_slices, aggregator.total_slices)
 
+    # TODO add test for when renormalisation is False and when dimensions are wrong
+    def test_get_nxdata(self) -> None:
+        output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
+                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        aggregator = MSMAggregator()
+        aggregator.output_data_files = output_data_files
+        aggregator._get_nxdata()
+        self.assertEqual(aggregator.nxentry_name, "processed")
+        self.assertEqual(aggregator.nxdata_name, "reciprocal_space")
+        self.assertEqual(aggregator.aux_signal_names, ["weight"])
+        # TODO: change so only accumulate if other aux_signals
+        self.assertEqual(aggregator.accumulate_aux_signals, True)
+        self.assertEqual(aggregator.nxentry_name, "processed")
+        self.assertEqual(aggregator.renormalisation, True)
+        self.assertEqual(aggregator.signal_name, "volume")
+        self.assertEqual(aggregator.axes_names, ["h-axis", "k-axis", "l-axis"])
+        self.assertEqual(aggregator.data_dimensions, 3)
+        self.assertEqual(aggregator.data_shape, (83, 76, 13))
+        self.assertEqual(aggregator.axes_spacing, [0.02, 0.02, 0.02])
+
+    # TODO add tests for when no default
+    def test_get_default_nxentry(self) -> None:
+
+        data_file = "/scratch/victoria/i07-394487-applied-halfa.nxs"
+        aggregator = MSMAggregator()
+        with h5py.File(data_file, "r") as f:
+            nxentry_name = aggregator._get_default_nxgroup(f, b'NXentry').decode()
+
+        self.assertEqual(nxentry_name, "processed")
+
+    def test_get_default_nxdata(self) -> None:
+
+        data_file = "/scratch/victoria/i07-394487-applied-halfa.nxs"
+        aggregator = MSMAggregator()
+        with h5py.File(data_file, "r") as f:
+            nxdata_name = aggregator._get_default_nxgroup(f["processed"], b'NXdata').decode()
+
+        self.assertEqual(nxdata_name, "reciprocal_space")
+
+    def test_get_default_signals_and_axes(self) -> None:
+        data_file = "/scratch/victoria/i07-394487-applied-halfa.nxs"
+        aggregator = MSMAggregator()
+        with h5py.File(data_file, "r") as f:
+            nx_data = f["processed/reciprocal_space"]
+            aggregator._get_default_signals_and_axes(nx_data)
+        self.assertEqual(aggregator.aux_signal_names, ["weight"])
+        self.assertEqual(aggregator.accumulate_aux_signals, True)
+        self.assertEqual(aggregator.renormalisation, True)
+        self.assertEqual(aggregator.signal_name, "volume")
+        self.assertEqual(aggregator.axes_names, ["h-axis", "k-axis", "l-axis"])
+
+    def test_fill_axes_fields(self) -> None:
+        aggregator = MSMAggregator()
+        aggregator.data_dimensions = 3
+        aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
+                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        aggregator.nxentry_name = "processed"
+        aggregator.nxdata_name = "reciprocal_space"
+        aggregator.axes_names = ["h-axis", "k-axis", "l-axis"]
+        aggregator._fill_axes_fields()
+        self.assertEqual(aggregator.axes_mins, [-0.2, -0.08, 0.86])
+        self.assertEqual(aggregator.axes_maxs, [1.4400000000000002, 1.44, 1.1])
+        self.assertEqual(aggregator._axes_starts_stops, [[[-0.2, 1.4400000000000002], [-0.2, 1.4400000000000002]],
+                                                         [[-0.08, 1.42], [-0.08, 1.44]], [[0.86, 1.1], [0.86, 1.1]]])
+
+    def test_initialise_accumulator_arrays(self) -> None:
+        aggregator = MSMAggregator()
+        aggregator.data_dimensions = 3
+        aggregator.axes_mins = [-0.2, -0.08, 0.86]
+        aggregator.axes_maxs = [1.4400000000000002, 1.44, 1.1]
+        aggregator.axes_spacing = [0.02, 0.02, 0.02]
+        aggregator.renormalisation = True
+
+        aggregator._initialise_accumulator_arrays()
+        self.assertEqual(aggregator.accumulator_axis_lengths, [83, 77, 13])
+        self.assertEqual(len(aggregator.accumulator_axis_ranges), 3)
+        self.assertEqual(len(aggregator.accumulator_axis_ranges[0]), 83)
+        self.assertEqual(len(aggregator.accumulator_axis_ranges[1]), 77)
+        self.assertEqual(len(aggregator.accumulator_axis_ranges[2]), 13)
+        self.assertEqual(aggregator.accumulator_axis_ranges[0][0], -0.2)
+        self.assertEqual(aggregator.accumulator_axis_ranges[0][-1], 1.44)
+        self.assertEqual(aggregator.accumulator_axis_ranges[1][0], -0.08)
+        self.assertEqual(aggregator.accumulator_axis_ranges[1][-1], 1.44)
+        self.assertEqual(aggregator.accumulator_axis_ranges[2][0], 0.86)
+        self.assertEqual(aggregator.accumulator_axis_ranges[2][-1], 1.1)
+        self.assertTrue(np.array_equal(aggregator.accumulator_volume, np.zeros([83, 77, 13])))
+        self.assertTrue(np.array_equal(aggregator.accumulator_weights, np.zeros([83, 77, 13])))
+
+    def test_accumulate_volumes(self) -> None:
+        aggregator = MSMAggregator()
+        aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
+                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        aggregator.nxentry_name = "processed"
+        aggregator.nxdata_name = "reciprocal_space"
+        aggregator.signal_name = "volume"
+        aggregator.axes_names = ["h-axis", "k-axis", "l-axis"]
+        aggregator.renormalisation = True
+        aggregator.data_dimensions = 3
+        aggregator.accumulator_weights = np.zeros([83, 77, 13])
+        aggregator.accumulator_volume = np.zeros([83, 77, 13])
+        aggregator.axes_mins = [-0.2, -0.08, 0.86]
+        aggregator.axes_spacing = [0.02, 0.02, 0.02]
+        aggregator.accumulator_axis_lengths = [83, 77, 13]
+        aggregator.accumulator_axis_ranges = [[(round((x * aggregator.axes_spacing[i]), 4) + aggregator.axes_mins[i])
+                                               for x in range(aggregator.accumulator_axis_lengths[i])]
+                                              for i in range(3)]
+
+        aggregator._accumulate_volumes()
+
+        with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
+            volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
+            weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
+        self.assertEqual(aggregator.total_volume.shape, (83, 77, 13))
+        np.testing.assert_allclose(aggregator.total_volume, volumes_array, rtol=0.001)
+        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
+
+    def test_get_starts_and_stops(self) -> None:
+        aggregator = MSMAggregator()
+        aggregator.axes_mins = [-0.2, -0.08, 0.86]
+        aggregator.axes_spacing = [0.02, 0.02, 0.02]
+        aggregator.accumulator_axis_lengths = [83, 77, 13]
+        aggregator.accumulator_axis_ranges = [[(round((x * aggregator.axes_spacing[i]), 4) + aggregator.axes_mins[i])
+                                               for x in range(aggregator.accumulator_axis_lengths[i])]
+                                              for i in range(3)]
+        aggregator.data_dimensions = 3
+        data_file = "/scratch/victoria/i07-394487-applied-halfa.nxs"
+        with h5py.File(data_file, "r") as f:
+            axes = [np.array(f["processed/reciprocal_space"][axis_name]) for axis_name in ["h-axis", "k-axis", "l-axis"]]
+        slices = aggregator._get_starts_and_stops(axes, [83, 76, 13])
+        self.assertEqual(slices, [slice(0, 83), slice(0, 76), slice(0, 13)])
+
+
     def test_write_aggregation_file(self) -> None:
         output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
                              "/scratch/victoria/i07-394487-applied-halfb.nxs"]

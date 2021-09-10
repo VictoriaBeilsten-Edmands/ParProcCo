@@ -61,9 +61,11 @@ class MSMAggregator(AggregatorInterface):
     def _get_nxdata(self):
         data_file = self.output_data_files[0]
         with h5py.File(data_file, "r") as root:
-            self.nxentry_name = self._get_default_nxgroup(root, b'NXentry').decode()
+            nxentry_name = self._get_default_nxgroup(root, b'NXentry')
+            self.nxentry_name = nxentry_name.decode() if type(nxentry_name) != str else nxentry_name
             nxentry = root[self.nxentry_name]
-            self.nxdata_name = self._get_default_nxgroup(nxentry, b'NXdata').decode()
+            nxdata_name = self._get_default_nxgroup(nxentry, b'NXdata')
+            self.nxdata_name = nxdata_name.decode() if type(nxdata_name) != str else nxdata_name
             nxdata = nxentry[self.nxdata_name]
             self._get_default_signals_and_axes(nxdata)
 
@@ -73,28 +75,30 @@ class MSMAggregator(AggregatorInterface):
             axes = [nxdata[axis_name] for axis_name in self.axes_names]
             axes_shapes = tuple(axis.shape[0] for axis in axes)
             axes_dimensions = len(axes)
-            assert(signal_shape == axes_shapes)
-            assert(signal_dimensions == axes_dimensions)
+            assert signal_shape == axes_shapes
+            assert signal_dimensions == axes_dimensions
             self.data_dimensions = signal_dimensions
             self.data_shape = signal_shape
             self.axes_spacing = [round((axis[1] - axis[0]), 6) for axis in axes]
 
             if self.renormalisation:
                 weights = nxdata["weight"]
-                assert(len(weights.shape) == self.data_dimensions)
-                assert(weights.shape == self.data_shape)
+                assert len(weights.shape) == self.data_dimensions
+                assert weights.shape == self.data_shape
 
     def _get_default_nxgroup(self, f: Union[h5py.File, h5py.Group], class_name: str) -> str:
         if "default" in f.attrs:
             group_name = f.attrs["default"]
+            assert f[group_name].attrs["NX_class"] == class_name, f"{group_name} should be {class_name}"
             return group_name
 
-        f_key_list = list(f.keys())
-        for key in f_key_list:
-            key_attributes = list(f[key].attrs)
-            if ("NX_class" in key_attributes) and (f[key].attrs["NX_class"] == class_name):
-                group_name = key
-                return group_name
+        for key in f.keys():
+            try:
+                if f[key].attrs.get("NX_class", '') == class_name:
+                    return key
+            except KeyError:
+                # TODO: example data is missing linked group
+                pass
         raise ValueError
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Dataset) -> None:
@@ -121,19 +125,18 @@ class MSMAggregator(AggregatorInterface):
         raise KeyError
 
     def _fill_axes_fields(self) -> None:
-        self.axes_mins = [np.nan] * self.data_dimensions
-        self.axes_maxs = [np.nan] * self.data_dimensions
+        self.axes_mins = [np.inf] * self.data_dimensions
+        self.axes_maxs = [np.NINF] * self.data_dimensions
         self._axes_starts_stops = [[] for _ in range(self.data_dimensions)]
 
         for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
-                # TODO: check default dataset is the same in all files
                 data_group_name = "/".join([self.nxentry_name, self.nxdata_name])
                 nx_data_group = f[data_group_name]
                 axes = [np.array(nx_data_group[axis_name]) for axis_name in self.axes_names]
             for j, axis in enumerate(axes):
-                self.axes_mins[j] = np.nanmin([np.nanmin(axis), self.axes_mins[j]])
-                self.axes_maxs[j] = np.nanmax([np.nanmax(axis), self.axes_maxs[j]])
+                self.axes_mins[j] = np.nanmin([np.min(axis), self.axes_mins[j]])
+                self.axes_maxs[j] = np.nanmax([np.max(axis), self.axes_maxs[j]])
                 self._axes_starts_stops[j].append([axis[0], axis[-1]])
 
     def _initialise_accumulator_arrays(self) -> None:
@@ -155,7 +158,6 @@ class MSMAggregator(AggregatorInterface):
     def _accumulate_volumes(self) -> None:
         for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
-                # volumes and weights are 3d arrays
                 volumes_array = np.array(f[self.nxentry_name][self.nxdata_name][self.signal_name])
                 axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
                 if self.renormalisation:
@@ -180,14 +182,13 @@ class MSMAggregator(AggregatorInterface):
             slices.append(slice(start, stop))
             if not np.allclose(value, self.accumulator_axis_ranges[count][start:stop]):
                 raise RuntimeError
-        assert(len(slices) == self.data_dimensions)
+        assert len(slices) == self.data_dimensions
         return slices
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
 
         with h5py.File(aggregated_data_file, "w") as f:
-            # TODO: change this to use default group names
             processed = f.create_group(self.nxentry_name)
             processed.attrs["NX_class"] = "NXentry"
             processed.attrs["default"] = self.nxdata_name
@@ -204,7 +205,8 @@ class MSMAggregator(AggregatorInterface):
             data_group_name = "/".join((self.nxentry_name, self.nxdata_name))
             data_group = f.create_group(data_group_name)
             data_group.attrs["NX_class"] = "NXdata"
-            data_group.attrs["auxillary_signals"] = "weight"
+            if self.renormalisation:
+                data_group.attrs["auxillary_signals"] = "weight"
             data_group.attrs["axes"] = self.axes_names
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
