@@ -24,6 +24,7 @@ def setup_data_files(working_directory: Path) -> List[Path]:
 
 class TestDataSlicer(unittest.TestCase):
 
+    # TODO: need tests for all code paths
     def setUp(self) -> None:
         current_user = getpass.getuser()
         tmp_dir = f"/dls/tmp/{current_user}/"
@@ -85,7 +86,7 @@ class TestDataSlicer(unittest.TestCase):
         self.assertEqual(aggregator.nxdata_name, "reciprocal_space")
         self.assertEqual(aggregator.aux_signal_names, ["weight"])
         # TODO: change so only accumulate if other aux_signals
-        self.assertEqual(aggregator.accumulate_aux_signals, True)
+        self.assertEqual(aggregator.accumulate_aux_signals, False)
         self.assertEqual(aggregator.nxentry_name, "processed")
         self.assertEqual(aggregator.renormalisation, True)
         self.assertEqual(aggregator.signal_name, "volume")
@@ -120,7 +121,7 @@ class TestDataSlicer(unittest.TestCase):
             nx_data = f["processed/reciprocal_space"]
             aggregator._get_default_signals_and_axes(nx_data)
         self.assertEqual(aggregator.aux_signal_names, ["weight"])
-        self.assertEqual(aggregator.accumulate_aux_signals, True)
+        self.assertEqual(aggregator.accumulate_aux_signals, False)
         self.assertEqual(aggregator.renormalisation, True)
         self.assertEqual(aggregator.signal_name, "volume")
         self.assertEqual(aggregator.axes_names, ["h-axis", "k-axis", "l-axis"])
@@ -129,7 +130,7 @@ class TestDataSlicer(unittest.TestCase):
         aggregator = MSMAggregator()
         aggregator.data_dimensions = 3
         aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+                                        "/scratch/victoria/i07-394487-applied-halfb.nxs"]
         aggregator.nxentry_name = "processed"
         aggregator.nxdata_name = "reciprocal_space"
         aggregator.axes_names = ["h-axis", "k-axis", "l-axis"]
@@ -165,7 +166,7 @@ class TestDataSlicer(unittest.TestCase):
     def test_accumulate_volumes(self) -> None:
         aggregator = MSMAggregator()
         aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+                                        "/scratch/victoria/i07-394487-applied-halfb.nxs"]
         aggregator.nxentry_name = "processed"
         aggregator.nxdata_name = "reciprocal_space"
         aggregator.signal_name = "volume"
@@ -201,10 +202,10 @@ class TestDataSlicer(unittest.TestCase):
         aggregator.data_dimensions = 3
         data_file = "/scratch/victoria/i07-394487-applied-halfa.nxs"
         with h5py.File(data_file, "r") as f:
-            axes = [np.array(f["processed/reciprocal_space"][axis_name]) for axis_name in ["h-axis", "k-axis", "l-axis"]]
+            axes = [np.array(f["processed/reciprocal_space"][axis_name])
+                    for axis_name in ["h-axis", "k-axis", "l-axis"]]
         slices = aggregator._get_starts_and_stops(axes, [83, 76, 13])
         self.assertEqual(slices, [slice(0, 83), slice(0, 76), slice(0, 13)])
-
 
     def test_write_aggregation_file(self) -> None:
         output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",

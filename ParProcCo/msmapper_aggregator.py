@@ -103,14 +103,17 @@ class MSMAggregator(AggregatorInterface):
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Dataset) -> None:
         self.renormalisation = False
+        self.accumulate_aux_signals = False
+
         if "auxiliary_signals" in nxdata.attrs:
             self.aux_signal_names = [name.decode() for name in nxdata.attrs["auxiliary_signals"]]
             # TODO: add code to accumulate aux_signals
-            self.accumulate_aux_signals = True
+            self.accumulate_aux_signals = False if self.aux_signal_names == ["weight"] else True
             if "weight" in self.aux_signal_names:
                 self.renormalisation = True
         else:
             self.aux_signal_names = None
+
         if not self.renormalisation:
             self.renormalisation = False
 
@@ -118,6 +121,7 @@ class MSMAggregator(AggregatorInterface):
             self.signal_name = nxdata.attrs["signal"].decode()
         elif "data" in nxdata.attrs:
             self.signal_name = nxdata.attrs["data"].decode()
+
         if self.signal_name and "axes" in nxdata.attrs:
             self.axes_names = [name.decode() for name in nxdata.attrs["axes"]]
             # TODO: add logic to create axes if not in file (from integer sequence starting at 0)
