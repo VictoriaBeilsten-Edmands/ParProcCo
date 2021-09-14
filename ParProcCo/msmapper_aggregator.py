@@ -77,8 +77,8 @@ class MSMAggregator(AggregatorInterface):
             slices = []
 
             for j, axis in enumerate(axes):
-                self.axes_mins[j] = np.min([np.min(axis), self.axes_mins[j]])
-                self.axes_maxs[j] = np.max([np.max(axis), self.axes_maxs[j]])
+                self.axes_mins[j] = min([min(axis), self.axes_mins[j]])
+                self.axes_maxs[j] = max([max(axis), self.axes_maxs[j]])
                 self._axes_starts_stops[j].append([axis[0], axis[-1]])
 
                 start = int((axis[0] - self.axes_mins[j]) / self.axes_spacing[j])
