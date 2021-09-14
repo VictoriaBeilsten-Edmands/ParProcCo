@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Tuple, Union
 
 import h5py
 import numpy as np
-from ParProcCo import __version__
 from job_controller import AggregatorInterface
+
+from ParProcCo import __version__
 
 
 class MSMAggregator(AggregatorInterface):
@@ -19,6 +21,7 @@ class MSMAggregator(AggregatorInterface):
         self.accumulator_axis_ranges: List
         self.accumulator_volume: np.ndarray
         self.accumulator_weights: np.ndarray
+        self.all_slices: List[List[slice]]
         self.aux_signal_names: Union[None, List[str]]
         self.axes_maxs: List
         self.axes_mins: List
@@ -54,18 +57,61 @@ class MSMAggregator(AggregatorInterface):
     def _renormalise(self, output_data_files: List[Path]) -> None:
         self.output_data_files = output_data_files
         self._get_nxdata()
-        self._fill_axes_fields()
-        self._initialise_accumulator_arrays()
+        self._initialise_arrays()
         self._accumulate_volumes()
+
+    def _initialise_arrays(self) -> None:
+        self.axes_mins = [np.inf] * self.data_dimensions
+        self.axes_maxs = [np.NINF] * self.data_dimensions
+        self._axes_starts_stops = [[] for _ in range(self.data_dimensions)]
+        self.all_slices = []
+
+        for data_file in self.output_data_files:
+            with h5py.File(data_file, "r") as f:
+                data_group_name = "/".join([self.nxentry_name, self.nxdata_name])
+                nx_data_group = f[data_group_name]
+                volumes_array = np.array(nx_data_group[self.signal_name])
+                axes = [np.array(nx_data_group[axis_name]) for axis_name in self.axes_names]
+
+            axes_lengths = volumes_array.shape
+            slices = []
+
+            for j, axis in enumerate(axes):
+                self.axes_mins[j] = np.min([np.min(axis), self.axes_mins[j]])
+                self.axes_maxs[j] = np.max([np.max(axis), self.axes_maxs[j]])
+                self._axes_starts_stops[j].append([axis[0], axis[-1]])
+
+                start = int((axis[0] - self.axes_mins[j]) / self.axes_spacing[j])
+                stop = axes_lengths[j] - start
+                slices.append(slice(start, stop))
+
+            assert len(slices) == self.data_dimensions
+            self.all_slices.append(slices)
+
+        self.accumulator_axis_lengths = []
+        self.accumulator_axis_ranges = []
+
+        for i in range(self.data_dimensions):
+            length = int((self.axes_maxs[i] - self.axes_mins[i]) / self.axes_spacing[i]) + 1
+            self.accumulator_axis_lengths.append(length)
+            ranges = [(round((x * self.axes_spacing[i]), 4) + self.axes_mins[i])
+                      for x in range(self.accumulator_axis_lengths[i])]
+            self.accumulator_axis_ranges.append(ranges)
+
+        for j, axis in enumerate(axes):
+            if not np.allclose(axis, self.accumulator_axis_ranges[j][slices[j]]):
+                raise RuntimeError
+
+        self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
+        if self.renormalisation:
+            self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
 
     def _get_nxdata(self):
         data_file = self.output_data_files[0]
         with h5py.File(data_file, "r") as root:
-            nxentry_name = self._get_default_nxgroup(root, b'NXentry')
-            self.nxentry_name = nxentry_name.decode() if type(nxentry_name) != str else nxentry_name
+            self.nxentry_name = self._get_default_nxgroup(root, "NXentry")
             nxentry = root[self.nxentry_name]
-            nxdata_name = self._get_default_nxgroup(nxentry, b'NXdata')
-            self.nxdata_name = nxdata_name.decode() if type(nxdata_name) != str else nxdata_name
+            self.nxdata_name = self._get_default_nxgroup(nxentry, "NXdata")
             nxdata = nxentry[self.nxdata_name]
             self._get_default_signals_and_axes(nxdata)
 
@@ -89,24 +135,31 @@ class MSMAggregator(AggregatorInterface):
     def _get_default_nxgroup(self, f: Union[h5py.File, h5py.Group], class_name: str) -> str:
         if "default" in f.attrs:
             group_name = f.attrs["default"]
-            assert f[group_name].attrs["NX_class"] == class_name, f"{group_name} should be {class_name}"
+            group_name = group_name.decode() if not isinstance(group_name, str) else group_name
+            class_type = f[group_name].attrs.get("NX_class", '')
+            class_type = class_type.decode() if not isinstance(class_type, str) else class_type
+            assert class_type == class_name, f"{group_name} class_name must be {class_name}"
             return group_name
 
-        for key in f.keys():
+        for group_name in f.keys():
             try:
-                if f[key].attrs.get("NX_class", '') == class_name:
-                    return key
+                class_type = f[group_name].attrs.get("NX_class", '')
+                class_type = class_type.decode() if not isinstance(class_type, str) else class_type
+                if class_type == class_name:
+                    group_name = group_name.decode() if not isinstance(group_name, str) else group_name
+                    return group_name
             except KeyError:
                 # TODO: example data is missing linked group
-                pass
-        raise ValueError
+                warnings.warn(f"KeyError: {group_name} could not be accessed in {f}")
+        raise ValueError(f"no {class_name} group found")
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Dataset) -> None:
         self.renormalisation = False
         self.accumulate_aux_signals = False
 
         if "auxiliary_signals" in nxdata.attrs:
-            self.aux_signal_names = [name.decode() for name in nxdata.attrs["auxiliary_signals"]]
+            self.aux_signal_names = [name.decode() if not isinstance(name, str) else name
+                                     for name in nxdata.attrs["auxiliary_signals"]]
             # TODO: add code to accumulate aux_signals
             self.accumulate_aux_signals = False if self.aux_signal_names == ["weight"] else True
             if "weight" in self.aux_signal_names:
@@ -114,80 +167,33 @@ class MSMAggregator(AggregatorInterface):
         else:
             self.aux_signal_names = None
 
-        if not self.renormalisation:
-            self.renormalisation = False
-
         if "signal" in nxdata.attrs:
-            self.signal_name = nxdata.attrs["signal"].decode()
-        elif "data" in nxdata.attrs:
-            self.signal_name = nxdata.attrs["data"].decode()
+            signal_name = nxdata.attrs["signal"]
+            self.signal_name = signal_name.decode() if not isinstance(signal_name, str) else signal_name
+        elif "data" in nxdata.keys():
+            self.signal_name = "data"
 
-        if self.signal_name and "axes" in nxdata.attrs:
-            self.axes_names = [name.decode() for name in nxdata.attrs["axes"]]
+        if hasattr(self, "signal_name") and "axes" in nxdata.attrs:
+            self.axes_names = [name.decode() if not isinstance(name, str) else name for name in nxdata.attrs["axes"]]
             # TODO: add logic to create axes if not in file (from integer sequence starting at 0)
             return
         raise KeyError
 
-    def _fill_axes_fields(self) -> None:
-        self.axes_mins = [np.inf] * self.data_dimensions
-        self.axes_maxs = [np.NINF] * self.data_dimensions
-        self._axes_starts_stops = [[] for _ in range(self.data_dimensions)]
-
-        for data_file in self.output_data_files:
-            with h5py.File(data_file, "r") as f:
-                data_group_name = "/".join([self.nxentry_name, self.nxdata_name])
-                nx_data_group = f[data_group_name]
-                axes = [np.array(nx_data_group[axis_name]) for axis_name in self.axes_names]
-            for j, axis in enumerate(axes):
-                self.axes_mins[j] = np.nanmin([np.min(axis), self.axes_mins[j]])
-                self.axes_maxs[j] = np.nanmax([np.max(axis), self.axes_maxs[j]])
-                self._axes_starts_stops[j].append([axis[0], axis[-1]])
-
-    def _initialise_accumulator_arrays(self) -> None:
-        self.accumulator_axis_lengths = []
-        self.accumulator_axis_ranges = []
-
-        for i in range(self.data_dimensions):
-
-            length = int((self.axes_maxs[i] - self.axes_mins[i]) / self.axes_spacing[i]) + 1
-            self.accumulator_axis_lengths.append(length)
-            ranges = [(round((x * self.axes_spacing[i]), 4) + self.axes_mins[i])
-                      for x in range(self.accumulator_axis_lengths[i])]
-            self.accumulator_axis_ranges.append(ranges)
-
-        self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
-        if self.renormalisation:
-            self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
-
     def _accumulate_volumes(self) -> None:
-        for data_file in self.output_data_files:
+        for i, data_file in enumerate(self.output_data_files):
             with h5py.File(data_file, "r") as f:
                 volumes_array = np.array(f[self.nxentry_name][self.nxdata_name][self.signal_name])
-                axes = [np.array(f[self.nxentry_name][self.nxdata_name][axis_name]) for axis_name in self.axes_names]
                 if self.renormalisation:
                     weights_array = np.array(f[self.nxentry_name][self.nxdata_name]["weight"])
 
-            axes_lengths = volumes_array.shape
-            slices = self._get_starts_and_stops(axes, axes_lengths)
             if self.renormalisation:
                 volumes_array = np.multiply(volumes_array, weights_array)
-                self.accumulator_weights[slices] += weights_array
-            self.accumulator_volume[slices] += volumes_array
+                self.accumulator_weights[self.all_slices[i]] += weights_array
+            self.accumulator_volume[self.all_slices[i]] += volumes_array
 
         if self.renormalisation:
             self.total_volume = self.accumulator_volume / self.accumulator_weights
             self.total_volume[np.isnan(self.total_volume)] = 0
-
-    def _get_starts_and_stops(self, axes: List, axes_lengths: List) -> List[slice]:
-        slices = []
-        for count, value in enumerate(axes):
-            start = int((value[0] - self.axes_mins[count]) / self.axes_spacing[count])
-            stop = axes_lengths[count] - start
-            slices.append(slice(start, stop))
-            if not np.allclose(value, self.accumulator_axis_ranges[count][start:stop]):
-                raise RuntimeError
-        assert len(slices) == self.data_dimensions
-        return slices
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
@@ -210,7 +216,7 @@ class MSMAggregator(AggregatorInterface):
             data_group = f.create_group(data_group_name)
             data_group.attrs["NX_class"] = "NXdata"
             if self.renormalisation:
-                data_group.attrs["auxillary_signals"] = "weight"
+                data_group.attrs["auxiliary_signals"] = "weight"
             data_group.attrs["axes"] = self.axes_names
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
