@@ -297,16 +297,9 @@ class TestMSMAggregator(unittest.TestCase):
             file_path = Path(working_directory) / "output.nxs"
             aggregator.output_data_files = [file_path]
 
-            with h5py.File(file_path, 'w') as f:
-                default_entry = f.create_group("default_entry")
-                default_entry.attrs["NX_class"] = "NXentry"
-                f.attrs["default"] = "default_entry"
-                default_data = default_entry.create_group("default_data")
-                default_data.attrs["NX_class"] = "NXdata"
-                default_entry.attrs["default"] = "default_data"
-
-                default_data.attrs["axes"] = ["a-axis", "b-axis", "c-axis"]
-                default_data.attrs["signal"] = "volume"
+            self.create_basic_nexus_file(file_path, False)
+            with h5py.File(file_path, 'r+') as f:
+                default_data = f["default_entry/default_data"]
                 default_data.attrs[f"a-axis_indices"] = 0
                 default_data.attrs[f"b-axis_indices"] = 1
                 default_data.attrs[f"c-axis_indices"] = 2
@@ -334,17 +327,9 @@ class TestMSMAggregator(unittest.TestCase):
             file_path = Path(working_directory) / "output.nxs"
             aggregator.output_data_files = [file_path]
 
-            with h5py.File(file_path, 'w') as f:
-                default_entry = f.create_group("default_entry")
-                default_entry.attrs["NX_class"] = "NXentry"
-                f.attrs["default"] = "default_entry"
-                default_data = default_entry.create_group("default_data")
-                default_data.attrs["NX_class"] = "NXdata"
-                default_entry.attrs["default"] = "default_data"
-
-                default_data.attrs["auxiliary_signals"] = ["weight"]
-                default_data.attrs["axes"] = ["a-axis", "b-axis", "c-axis"]
-                default_data.attrs["signal"] = "volume"
+            self.create_basic_nexus_file(file_path, True)
+            with h5py.File(file_path, 'r+') as f:
+                default_data = f["default_entry/default_data"]
                 default_data.attrs[f"a-axis_indices"] = 0
                 default_data.attrs[f"b-axis_indices"] = 1
                 default_data.attrs[f"c-axis_indices"] = 2
@@ -366,17 +351,10 @@ class TestMSMAggregator(unittest.TestCase):
             file_path = Path(working_directory) / "output.nxs"
             aggregator.output_data_files = [file_path]
 
-            with h5py.File(file_path, 'w') as f:
-                default_entry = f.create_group("default_entry")
-                default_entry.attrs["NX_class"] = "NXentry"
-                f.attrs["default"] = "default_entry"
-                default_data = default_entry.create_group("default_data")
-                default_data.attrs["NX_class"] = "NXdata"
-                default_entry.attrs["default"] = "default_data"
-
-                default_data.attrs["auxiliary_signals"] = ["weight"]
+            self.create_basic_nexus_file(file_path, True)
+            with h5py.File(file_path, 'r+') as f:
+                default_data = f["default_entry/default_data"]
                 default_data.attrs["axes"] = ["a-axis", "b-axis"]
-                default_data.attrs["signal"] = "volume"
                 default_data.attrs[f"a-axis_indices"] = 0
                 default_data.attrs[f"b-axis_indices"] = 1
                 f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
@@ -396,17 +374,9 @@ class TestMSMAggregator(unittest.TestCase):
             file_path = Path(working_directory) / "output.nxs"
             aggregator.output_data_files = [file_path]
 
-            with h5py.File(file_path, 'w') as f:
-                default_entry = f.create_group("default_entry")
-                default_entry.attrs["NX_class"] = "NXentry"
-                f.attrs["default"] = "default_entry"
-                default_data = default_entry.create_group("default_data")
-                default_data.attrs["NX_class"] = "NXdata"
-                default_entry.attrs["default"] = "default_data"
-
-                default_data.attrs["auxiliary_signals"] = ["weight"]
-                default_data.attrs["axes"] = ["a-axis", "b-axis", "c-axis"]
-                default_data.attrs["signal"] = "volume"
+            self.create_basic_nexus_file(file_path, True)
+            with h5py.File(file_path, 'r+') as f:
+                default_data = f["default_entry/default_data"]
                 default_data.attrs[f"a-axis_indices"] = 0
                 default_data.attrs[f"b-axis_indices"] = 1
                 default_data.attrs[f"c-axis_indices"] = 2
@@ -428,17 +398,9 @@ class TestMSMAggregator(unittest.TestCase):
             file_path = Path(working_directory) / "output.nxs"
             aggregator.output_data_files = [file_path]
 
-            with h5py.File(file_path, 'w') as f:
-                default_entry = f.create_group("default_entry")
-                default_entry.attrs["NX_class"] = "NXentry"
-                f.attrs["default"] = "default_entry"
-                default_data = default_entry.create_group("default_data")
-                default_data.attrs["NX_class"] = "NXdata"
-                default_entry.attrs["default"] = "default_data"
-
-                default_data.attrs["auxiliary_signals"] = ["weight"]
-                default_data.attrs["axes"] = ["a-axis", "b-axis", "c-axis"]
-                default_data.attrs["signal"] = "volume"
+            self.create_basic_nexus_file(file_path, True)
+            with h5py.File(file_path, 'r+') as f:
+                default_data = f["default_entry/default_data"]
                 default_data.attrs[f"a-axis_indices"] = 0
                 default_data.attrs[f"b-axis_indices"] = 1
                 default_data.attrs[f"c-axis_indices"] = 2
@@ -689,109 +651,6 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.accumulate_aux_signals, False)
         self.assertEqual(aggregator.aux_signal_names, ["weight"])
         self.assertEqual(aggregator.renormalisation, True)
-######################################
-    def test_initialise_arrays_all_ok(self) -> None:
-        aggregator = MSMAggregator()
-        aggregator.data_dimensions = 3
-        aggregator.nxentry_name = "default_entry"
-        aggregator.nxdata_name = "default_data"
-        aggregator.signal_name = "volume"
-        aggregator.axes_names = ["a-axis", "b-axis", "c-axis"]
-        aggregator.axes_spacing = [0.2, 0.2, 0.2]
-        aggregator.renormalisation = True
-
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            file_path_0 = Path(working_directory) / "output0.nxs"
-            file_path_1 = Path(working_directory) / "output1.nxs"
-
-            aggregator.output_data_files = [file_path_0, file_path_1]
-
-            for file_path in aggregator.output_data_files:
-                with h5py.File(file_path, 'w') as f:
-                    default_entry = f.create_group("default_entry")
-                    default_entry.attrs["NX_class"] = "NXentry"
-                    f.attrs["default"] = "default_entry"
-                    default_data = default_entry.create_group("default_data")
-                    default_data.attrs["NX_class"] = "NXdata"
-                    default_entry.attrs["default"] = "default_data"
-                    default_data.attrs["auxiliary_signals"] = ["weight"]
-                    default_data.attrs["axes"] = ["a-axis", "b-axis", "c-axis"]
-                    default_data.attrs["signal"] = "volume"
-
-            with h5py.File(file_path_0, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
-                volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
-                weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
-
-            with h5py.File(file_path_1, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2, 0.4])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2, 0.4])
-                volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
-                weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
-
-            aggregator._initialise_arrays()
-            self.assertEqual(aggregator.axes_mins, [0.0, 1.0, -0.4])
-            self.assertEqual(aggregator.axes_maxs, [0.4, 1.4, 0.4])
-            self.assertEqual(aggregator.all_slices, [[slice(0, 2), slice(0, 3), slice(0, 4)],
-                                                     [slice(0, 3), slice(1, 3), slice(0, 5)]])
-            self.assertEqual(aggregator.accumulator_axis_lengths, [3, 3, 5])
-            self.assertEqual(aggregator.accumulator_axis_ranges,
-                             [[0.0, 0.2, 0.4], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]])
-            self.assertTrue(np.array_equal(aggregator.accumulator_volume, np.zeros([3, 3, 5])))
-            self.assertTrue(np.array_equal(aggregator.accumulator_weights, np.zeros([3, 3, 5])))
-######################################
-    # current test
-    def test_accumulate_volumes_all_ok(self) -> None:
-        aggregator = MSMAggregator()
-        aggregator.nxentry_name = "default_entry"
-        aggregator.nxdata_name = "default_data"
-        aggregator.signal_name = "volume"
-        aggregator.renormalisation = True
-        aggregator.accumulator_weights = np.zeros([3, 3, 5])
-        aggregator.accumulator_volume = np.zeros([3, 3, 5])
-        aggregator.all_slices = [[slice(0, 2), slice(0, 3), slice(0, 4)], [slice(0, 3), slice(1, 3), slice(0, 5)]]
-
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            file_path_0 = Path(working_directory) / "output0.nxs"
-            file_path_1 = Path(working_directory) / "output1.nxs"
-
-            aggregator.output_data_files = [file_path_0, file_path_1]
-
-            for file_path in aggregator.output_data_files:
-                with h5py.File(file_path, 'w') as f:
-                    default_entry = f.create_group("default_entry")
-                    default_entry.attrs["NX_class"] = "NXentry"
-                    f.attrs["default"] = "default_entry"
-                    default_data = default_entry.create_group("default_data")
-                    default_data.attrs["NX_class"] = "NXdata"
-                    default_entry.attrs["default"] = "default_data"
-                    default_data.attrs["auxiliary_signals"] = ["weight"]
-                    default_data.attrs["signal"] = "volume"
-
-            with h5py.File(file_path_0, 'w') as f:
-                volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
-                weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
-
-            with h5py.File(file_path_1, 'w') as f:
-                volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
-                weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
-
-            aggregator._accumulate_volumes()
-        #
-        # self.assertEqual(aggregator.accumulator_volume)
-        # self.assertEqual(aggregator.accumulator_weights)
-        # self.assertEqual(aggregator.total_volume)
 
     def test_accumulate_volumes(self) -> None:
         aggregator = MSMAggregator()
