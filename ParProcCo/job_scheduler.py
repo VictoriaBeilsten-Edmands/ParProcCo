@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -246,9 +247,10 @@ class JobScheduler:
 
     def rerun_killed_jobs(self, jobscript: Path):
         job_history = self.job_history
-        failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
-
-        if any(self.job_completion_status.values()):
+        if all(self.job_completion_status.values()):
+            warnings.warn("No failed jobs")
+        elif any(self.job_completion_status.values()):
+            failed_jobs = [job_info for job_info in job_history[0].values() if job_info.final_state != "SUCCESS"]
             killed_jobs = self.filter_killed_jobs(failed_jobs)
             killed_jobs_inputs = [job["input_path"] for job in killed_jobs]
             if not all(x == killed_jobs_inputs[0] for x in killed_jobs_inputs):
