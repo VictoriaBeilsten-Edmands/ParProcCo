@@ -1,4 +1,5 @@
 from setuptools import setup
+
 from ParProcCo import __version__
 
 setup(
