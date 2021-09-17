@@ -4,7 +4,7 @@ import string
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AnyStr, List, Tuple, Union
+from typing import AnyStr, List, Union
 
 import h5py
 import numpy as np
@@ -72,7 +72,7 @@ class MSMAggregator(AggregatorInterface):
         self.axes_mins = [np.inf] * self.data_dimensions
         self.axes_maxs = [np.NINF] * self.data_dimensions
 
-        for i, axis_set in enumerate(self.all_axes):
+        for axis_set in self.all_axes:
             for j, axis in enumerate(axis_set):
                 self.axes_mins[j] = min([min(axis), self.axes_mins[j]])
                 self.axes_maxs[j] = max([max(axis), self.axes_maxs[j]])
@@ -100,13 +100,10 @@ class MSMAggregator(AggregatorInterface):
                       for x in range(self.accumulator_axis_lengths[i])]
             self.accumulator_axis_ranges.append(ranges)
 
-        # TODO: switch over to using self.all_axes
-        for i, data_file in enumerate(self.output_data_files):
-            with h5py.File(data_file, "r") as f:
-                axes = [np.array(f[self.nxdata_path_name][axis_name]) for axis_name in self.axes_names]
-            for j, axis in enumerate(axes):
-                if not np.allclose(axis, self.accumulator_axis_ranges[j][self.all_slices[i][j]]):
-                    raise RuntimeError(f"axis {j} does not match slice {slice} of accumulator_axis_range")
+        for axes, slices in zip(self.all_axes, self.all_slices):
+            for axis, axis_range, single_slice in zip(axes, self.accumulator_axis_ranges, slices):
+                if not np.allclose(axis, axis_range[single_slice]):
+                    raise RuntimeError(f"axis does not match slice {single_slice} of accumulator_axis_range")
 
         self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
         if self.renormalisation:
@@ -201,7 +198,7 @@ class MSMAggregator(AggregatorInterface):
         self.axes_spacing = [round((axis[1] - axis[0]), 6) for axis in axes]
 
     def _accumulate_volumes(self) -> None:
-        for i, data_file in enumerate(self.output_data_files):
+        for data_file, slices in zip(self.output_data_files, self.all_slices):
             with h5py.File(data_file, "r") as f:
                 volumes_array = np.array(f[self.nxdata_path_name][self.signal_name])
                 if self.renormalisation:
@@ -209,8 +206,8 @@ class MSMAggregator(AggregatorInterface):
 
             if self.renormalisation:
                 volumes_array = np.multiply(volumes_array, weights_array)
-                self.accumulator_weights[self.all_slices[i]] += weights_array
-            self.accumulator_volume[self.all_slices[i]] += volumes_array
+                self.accumulator_weights[slices] += weights_array
+            self.accumulator_volume[slices] += volumes_array
 
         if self.renormalisation:
             self.total_volume = self.accumulator_volume / self.accumulator_weights
