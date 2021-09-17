@@ -6,7 +6,6 @@ import unittest
 import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List
 
 import h5py
 import numpy as np
@@ -17,7 +16,6 @@ from msmapper_aggregator import MSMAggregator
 class TestMSMAggregator(unittest.TestCase):
 
     # TODO: need tests for all code paths
-    # TODO refactor method to create basic nexus test file
     def setUp(self) -> None:
         current_user = getpass.getuser()
         tmp_dir = f"/dls/tmp/{current_user}/"
@@ -575,7 +573,6 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.signal_name, "data")
         self.assertEqual(aggregator.axes_names, ["a-axis", "b-axis", "c-axis"])
 
-    # TODO: add code to deal with missing axes
     def test_get_default_signals_and_axes_no_axes(self) -> None:
         aggregator = MSMAggregator()
         aggregator.output_data_files = []
