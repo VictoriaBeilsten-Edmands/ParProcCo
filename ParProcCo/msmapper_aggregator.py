@@ -4,7 +4,7 @@ import string
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AnyStr, List, Union
+from typing import AnyStr, List, Tuple, Union
 
 import h5py
 import numpy as np
@@ -26,6 +26,7 @@ class MSMAggregator(AggregatorInterface):
         self.accumulator_axis_ranges: List
         self.accumulator_volume: np.ndarray
         self.accumulator_weights: np.ndarray
+        self.all_axes: List[List]
         self.all_slices: List[List[slice]]
         self.aux_signal_names: Union[None, List[str]]
         self.axes_maxs: List
@@ -39,6 +40,7 @@ class MSMAggregator(AggregatorInterface):
         self.output_data_files: List[Path]
         self.renormalisation: bool
         self.signal_name: str
+        self.signal_shapes: List[Tuple]
         self.total_slices: int
         self.total_volume: np.ndarray
         self.use_default_axes: bool = False
