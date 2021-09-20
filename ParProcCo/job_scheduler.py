@@ -90,24 +90,23 @@ class JobScheduler:
             return True
         return False
 
-    def run(self, jobscript: Path, input_path: Path, slices: List[slice]) -> bool:
+    def run(self, jobscript: Path, input_path: Path, slice_params: List[slice]) -> bool:
         self.job_history[self.batch_number] = {}
-        self.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
-        self._run_and_monitor(jobscript, input_path, slices)
+        self.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slice_params}
+        self._run_and_monitor(jobscript, input_path, slice_params)
         return self.get_success()
 
-    def _run_and_monitor(self, jobscript: Path, input_path: Path, slices: List[slice]) -> None:
+    def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[slice]) -> None:
         jobscript = self.check_jobscript(jobscript)
         self.job_details: List[List] = []
 
         session = JobSession()  # Automatically destroyed when it is out of scope
-        self._run_jobs(session, jobscript, input_path, slices)
+        self._run_jobs(session, jobscript, input_path, slice_params)
         self._wait_for_jobs(session)
         self._report_job_info()
 
-    def _run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slices: List[slice]) -> None:
+    def _run_jobs(self, session: JobSession, jobscript: Path, input_path: Path, slice_params: List[slice]) -> None:
         logging.debug(f"Running jobs on cluster for {input_path}")
-        slice_params = [[f"{s.start}:{s.stop}:{s.step}"] for s in slices]
         try:
             # Run all input paths in parallel:
             for i, slice_param in enumerate(slice_params):
@@ -123,7 +122,7 @@ class JobScheduler:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
             raise
 
-    def _create_template(self, input_path: Path, jobscript: Path, slice_param: List[str], i: int,
+    def _create_template(self, input_path: Path, jobscript: Path, slice_param: slice, i: int,
                          job_name: str = "job_scheduler_testing") -> JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
@@ -136,6 +135,7 @@ class JobScheduler:
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(self.cluster_output_dir / err_file)
         self.output_paths.append(Path(output_fp))
+        slice_param = [f"{slice_param.start}:{slice_param.stop}:{slice_param.step}"]
         args = [f"--input_path", str(input_path), f"--output_path", str(output_fp), f"-I"] + slice_param
 
         jt = JobTemplate({
@@ -220,7 +220,7 @@ class JobScheduler:
                 )
 
             elif js == drmaa2.JobState.DONE:
-                self.job_completion_status["".join(slice_param)] = True
+                self.job_completion_status[f"{slice_param.start}:{slice_param.stop}:{slice_param.step}"] = True
                 status_info.final_state = "SUCCESS"
                 logging.info(
                     f"Job {job.id} processing file {filename} with slice parameters {slice_param} completed"

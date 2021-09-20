@@ -100,7 +100,7 @@ class TestJobScheduler(unittest.TestCase):
             input_paths = Path('path/to/file.extension')
             cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", queue="medium.q")
-            js._create_template(input_paths, "some_script.py", ["slice_param"], 1)
+            js._create_template(input_paths, "some_script.py", slice(0, 1, 2), 1)
             cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 

@@ -41,11 +41,11 @@ class JobController:
             number_jobs: int, processing_script: Path) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
-        slices = self.data_slicer.slice(input_path, number_jobs)
+        slice_params = self.data_slicer.slice(input_path, number_jobs)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, input_path, slices)
+        success = self.scheduler.run(processing_script, input_path, slice_params)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)
