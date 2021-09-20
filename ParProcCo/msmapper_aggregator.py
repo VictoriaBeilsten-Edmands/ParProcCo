@@ -42,7 +42,6 @@ class MSMAggregator(AggregatorInterface):
         self.signal_name: str
         self.signal_shapes: List[Tuple]
         self.total_slices: int
-        self.total_volume: np.ndarray
         self.use_default_axes: bool = False
 
     def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
@@ -89,7 +88,6 @@ class MSMAggregator(AggregatorInterface):
                 stop = axes_lengths[j] + start
                 slices.append(slice(start, stop))
 
-            assert len(slices) == self.data_dimensions, "number of slices must equal self.data_dimensions"
             self.all_slices.append(slices)
 
         self.accumulator_axis_lengths = []
@@ -188,6 +186,7 @@ class MSMAggregator(AggregatorInterface):
         for data_file in self.output_data_files:
             with h5py.File(data_file, "r") as f:
                 signal_shape = f[self.nxdata_path_name][self.signal_name].shape
+                assert len(signal_shape) == self.data_dimensions
                 self.signal_shapes.append(signal_shape)
                 if self.renormalisation:
                     weights_shape = f[self.nxdata_path_name]["weight"].shape
@@ -202,18 +201,24 @@ class MSMAggregator(AggregatorInterface):
     def _accumulate_volumes(self) -> None:
         for data_file, slices in zip(self.output_data_files, self.all_slices):
             with h5py.File(data_file, "r") as f:
-                volumes_array = np.array(f[self.nxdata_path_name][self.signal_name])
+                volumes = []
+                volumes = [np.array(f[self.nxdata_path_name][self.signal_name])]
                 if self.renormalisation:
-                    weights_array = np.array(f[self.nxdata_path_name]["weight"])
+                    weights = np.array(f[self.nxdata_path_name]["weight"])
+                if self.accumulate_aux_signals:
+                    extra_signal_names = [name for name in self.aux_signal_names if name != "weight"]
+                    volumes += [np.array(f[self.nxdata_path_name][name]) for name in extra_signal_names]
 
             if self.renormalisation:
-                volumes_array = np.multiply(volumes_array, weights_array)
-                self.accumulator_weights[slices] += weights_array
-            self.accumulator_volume[slices] += volumes_array
+                volumes = [np.multiply(volume, weights) for volume in volumes]
+                self.accumulator_weights[slices] += weights
+            for volume in volumes:
+                self.accumulator_volume[slices] += volume
 
         if self.renormalisation:
-            self.total_volume = self.accumulator_volume / self.accumulator_weights
-            self.total_volume[np.isnan(self.total_volume)] = 0
+            self.accumulator_volume = self.accumulator_volume / self.accumulator_weights
+
+        self.accumulator_volume[np.isnan(self.accumulator_volume)] = 0
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
@@ -242,7 +247,7 @@ class MSMAggregator(AggregatorInterface):
             for i, axis in enumerate(self.axes_names):
                 data_group.attrs[f"{axis}_indices"] = i
                 f.create_dataset("/".join((data_group_name, f"{axis}")), data=self.accumulator_axis_ranges[i])
-            f.create_dataset("/".join((data_group_name, self.signal_name)), data=self.total_volume)
+            f.create_dataset("/".join((data_group_name, self.signal_name)), data=self.accumulator_volume)
             if self.renormalisation:
                 f.create_dataset("/".join((data_group_name, "weight")), data=self.accumulator_weights)
 

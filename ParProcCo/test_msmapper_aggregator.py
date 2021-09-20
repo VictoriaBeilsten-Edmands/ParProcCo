@@ -55,13 +55,11 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator = MSMAggregator()
         aggregator._check_total_slices(2, output_file_paths)
         aggregator._renormalise(output_file_paths)
-        total_volume = aggregator.total_volume
-        total_weights = aggregator.accumulator_weights
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
             weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
-        np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
-        np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
+        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
+        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
 
     def test_check_total_slices_not_int(self) -> None:
         total_slices = "1"
@@ -648,6 +646,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.renormalisation = True
         aggregator.axes_names = ["a-axis", "b-axis", "c-axis"]
         aggregator.use_default_axes = False
+        aggregator.data_dimensions = 3
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             file_path_0 = Path(working_directory) / "output0.nxs"
             file_path_1 = Path(working_directory) / "output1.nxs"
@@ -688,6 +687,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.renormalisation = True
         aggregator.axes_names = ["a-axis", "b-axis", "c-axis"]
         aggregator.use_default_axes = True
+        aggregator.data_dimensions = 3
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             file_path_0 = Path(working_directory) / "output0.nxs"
             file_path_1 = Path(working_directory) / "output1.nxs"
@@ -715,6 +715,37 @@ class TestMSMAggregator(unittest.TestCase):
             self.assertEqual(aggregator.all_axes, [[[0, 1], [0, 1, 2], [0, 1, 2, 3]], [[0, 1, 2], [0, 1], [0, 1, 2, 3, 4]]])
             self.assertEqual(aggregator.axes_spacing, [1, 1, 1])
 
+    def test_accumulate_volumes_all_ok(self) -> None:
+        aggregator = MSMAggregator()
+        aggregator.nxdata_path_name = "default_entry/default_data"
+        aggregator.signal_name = "volume"
+        aggregator.renormalisation = True
+        aggregator.axes_names = ["a-axis", "b-axis", "c-axis"]
+        aggregator.use_default_axes = True
+        aggregator.data_dimensions = 3
+        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            file_path_0 = Path(working_directory) / "output0.nxs"
+            file_path_1 = Path(working_directory) / "output1.nxs"
+
+            aggregator.output_data_files = [file_path_0, file_path_1]
+
+            for file_path in aggregator.output_data_files:
+                self.create_basic_nexus_file(file_path, True)
+
+            with h5py.File(file_path_0, 'w') as f:
+                volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
+                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
+                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+
+            with h5py.File(file_path_1, 'w') as f:
+                volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
+                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
+                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+
+            aggregator._get_all_axes()
+
     def test_accumulate_volumes(self) -> None:
         aggregator = MSMAggregator()
         aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
@@ -726,6 +757,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.axes_names = ["h-axis", "k-axis", "l-axis"]
         aggregator.renormalisation = True
         aggregator.data_dimensions = 3
+        aggregator.accumulate_aux_signals = False
         aggregator.accumulator_weights = np.zeros([83, 77, 13])
         aggregator.accumulator_volume = np.zeros([83, 77, 13])
         aggregator.axes_mins = [-0.2, -0.08, 0.86]
@@ -740,8 +772,8 @@ class TestMSMAggregator(unittest.TestCase):
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
             weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
-        self.assertEqual(aggregator.total_volume.shape, (83, 77, 13))
-        np.testing.assert_allclose(aggregator.total_volume, volumes_array, rtol=0.001)
+        self.assertEqual(aggregator.accumulator_volume.shape, (83, 77, 13))
+        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
 
     def test_write_aggregation_file(self) -> None:
@@ -755,13 +787,11 @@ class TestMSMAggregator(unittest.TestCase):
 
             aggregator = MSMAggregator()
             aggregator_filepath = aggregator.aggregate(2, cluster_output_dir, sliced_data_files)
-            total_volume = aggregator.total_volume
-            total_weights = aggregator.accumulator_weights
             with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
                 volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
                 weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
-            np.testing.assert_allclose(total_volume, volumes_array, rtol=0.001)
-            np.testing.assert_allclose(total_weights, weights_array, rtol=0.001)
+            np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
+            np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
 
             self.assertEqual(aggregator_filepath, cluster_output_dir / "aggregated_results.nxs")
             with h5py.File(aggregator_filepath, "r") as af:
