@@ -155,7 +155,7 @@ class MSMAggregator(AggregatorInterface):
         if "auxiliary_signals" in nxdata.attrs:
             self.aux_signal_names = [decode_to_string(name) for name in nxdata.attrs["auxiliary_signals"]]
             # TODO: add code to accumulate aux_signals
-            self.accumulate_aux_signals = False if self.aux_signal_names == ["weight"] else True
+            self.accumulate_aux_signals = self.aux_signal_names != ["weight"]
             if "weight" in self.aux_signal_names:
                 self.renormalisation = True
         else:
