@@ -17,7 +17,7 @@ class StatusInfo:
     '''Class for keeping track of job status.'''
     job: drmaa2.Job
     input_path: Path
-    slice_param: List[str]
+    slice_param: slice
     output_path: Path
     info: Union[drmaa2.JobInfo, None] = None
     state: Union[drmaa2.JobState, None] = None
@@ -40,7 +40,7 @@ class JobScheduler:
         self.start_time = datetime.now()
         self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
         self.job_completion_status: Dict[str, bool] = {}
-        self.status_infos = List[StatusInfo]
+        self.status_infos: List[StatusInfo]
 
     def check_queue_list(self, queue: str) -> str:
         if not queue:
