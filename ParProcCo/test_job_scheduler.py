@@ -139,7 +139,7 @@ class TestJobScheduler(unittest.TestCase):
             js.job_history[js.batch_number] = {}
             js.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
             js.check_jobscript(jobscript)
-            js.job_details = []
+            js.status_infos = []
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
             js._run_jobs(session, jobscript, input_file_path, slices)

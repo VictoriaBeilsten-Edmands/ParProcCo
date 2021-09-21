@@ -40,7 +40,7 @@ class JobScheduler:
         self.start_time = datetime.now()
         self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
         self.job_completion_status: Dict[str, bool] = {}
-        self.job_details = List[StatusInfo]
+        self.status_infos = List[StatusInfo]
 
     def check_queue_list(self, queue: str) -> str:
         if not queue:
@@ -100,7 +100,7 @@ class JobScheduler:
 
     def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[slice]) -> None:
         jobscript = self.check_jobscript(jobscript)
-        self.job_details = []
+        self.status_infos = []
 
         session = JobSession()  # Automatically destroyed when it is out of scope
         self._run_jobs(session, jobscript, input_path, slice_params)
@@ -115,7 +115,7 @@ class JobScheduler:
                 template = self._create_template(input_path, jobscript, slice_param, i)
                 logging.debug(f"Submitting drmaa job with file {input_path}")
                 job = session.run_job(template)
-                self.job_details.append(StatusInfo(job, input_path, slice_param, Path(template.output_path)))
+                self.status_infos.append(StatusInfo(job, input_path, slice_param, Path(template.output_path)))
                 logging.debug(f"drmaa job for file {input_path} has been submitted with id {job.id}")
         except Drmaa2Exception:
             logging.error(f"Drmaa exception", exc_info=True)
@@ -158,7 +158,7 @@ class JobScheduler:
 
     def _wait_for_jobs(self, session: JobSession) -> None:
         try:
-            job_list = [status_info.job for status_info in self.job_details]
+            job_list = [status_info.job for status_info in self.status_infos]
             # Wait for jobs to start (timeout shouldn't include queue time)
             job_list_str = ", ".join([str(job.id) for job in job_list])
             logging.info(f"Waiting for jobs to start: {job_list_str}")
@@ -182,7 +182,7 @@ class JobScheduler:
 
     def _report_job_info(self) -> None:
         # Iterate through jobs with logging to check individual job outcomes
-        for status_info in self.job_details:
+        for status_info in self.status_infos:
             logging.debug(f"Retrieving info for drmaa job {status_info.job.id} for file {status_info.input_path}")
             try:
                 status_info.state = status_info.job.get_state()[0]  # Returns job state and job substate (always seems to be None)
