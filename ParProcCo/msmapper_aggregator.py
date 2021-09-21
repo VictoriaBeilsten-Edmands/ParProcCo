@@ -228,17 +228,14 @@ class MSMAggregator(AggregatorInterface):
             processed.attrs["NX_class"] = "NXentry"
             processed.attrs["default"] = self.nxdata_name
 
-            process_name = "/".join((self.nxentry_name, "process"))
-            process = f.create_group(process_name)
+            process = processed.create_group("process")
             process.attrs["NX_class"] = "NXprocess"
-            f.create_dataset("/".join((process_name, "date")), data=str(datetime.now(timezone.utc)))
-            f.create_dataset("/".join((process_name, "parameters")),
-                             data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
-            f.create_dataset("/".join((process_name, "program")), data="ParProcCo")
-            f.create_dataset("/".join((process_name, "version")), data=__version__)
+            process.create_dataset("date", data=str(datetime.now(timezone.utc)))
+            process.create_dataset("parameters", data=f"inputs: {output_data_files}, output: {aggregated_data_file}")
+            process.create_dataset("program", data="ParProcCo")
+            process.create_dataset("version", data=__version__)
 
-            data_group_name = "/".join((self.nxentry_name, self.nxdata_name))
-            data_group = f.create_group(data_group_name)
+            data_group = processed.create_group(self.nxdata_name)
             data_group.attrs["NX_class"] = "NXdata"
             if self.renormalisation:
                 data_group.attrs["auxiliary_signals"] = "weight"
@@ -246,10 +243,10 @@ class MSMAggregator(AggregatorInterface):
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
                 data_group.attrs[f"{axis}_indices"] = i
-                f.create_dataset("/".join((data_group_name, f"{axis}")), data=self.accumulator_axis_ranges[i])
-            f.create_dataset("/".join((data_group_name, self.signal_name)), data=self.accumulator_volume)
+                data_group.create_dataset(f"{axis}", data=self.accumulator_axis_ranges[i])
+            data_group.create_dataset(self.signal_name, data=self.accumulator_volume)
             if self.renormalisation:
-                f.create_dataset("/".join((data_group_name, "weight")), data=self.accumulator_weights)
+                data_group.create_dataset("weight", data=self.accumulator_weights)
 
             f.attrs["default"] = self.nxentry_name
 
@@ -268,8 +265,8 @@ class MSMAggregator(AggregatorInterface):
                 axis_dataset = [i, axis_min, axis_max, self.axes_spacing[i], axis_min * scaling, axis_max * scaling]
                 f.create_dataset(f"binoculars/axes/{axis}", data=axis_dataset)
 
-            binoculars["counts"] = f["/".join((data_group_name, self.signal_name))]
+            binoculars["counts"] = data_group[self.signal_name]
             if self.renormalisation:
-                binoculars["contributions"] = f["/".join((data_group_name, "weight"))]
+                binoculars["contributions"] = data_group["weight"]
 
         return aggregated_data_file

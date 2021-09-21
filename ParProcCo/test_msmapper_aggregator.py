@@ -56,8 +56,8 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator._check_total_slices(2, output_file_paths)
         aggregator._renormalise(output_file_paths)
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
-            volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
-            weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
+            volumes_array = np.array(f["processed/reciprocal_space/volume"])
+            weights_array = np.array(f["processed/reciprocal_space/weight"])
         np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
 
@@ -142,23 +142,26 @@ class TestMSMAggregator(unittest.TestCase):
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, True)
 
-            with h5py.File(file_path_0, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+            with h5py.File(file_path_0, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name]
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
-            with h5py.File(file_path_1, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2, 0.4])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2, 0.4])
+            with h5py.File(file_path_1, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name]
+
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2, 0.4])
+                nxdata_group.create_dataset("b-axis", data=[1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2, 0.4])
                 volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             aggregator._initialise_arrays()
             self.assertEqual(aggregator.axes_mins, [0.0, 1.0, -0.4])
@@ -190,14 +193,15 @@ class TestMSMAggregator(unittest.TestCase):
 
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, True)
-                with h5py.File(file_path, 'w') as f:
-                    f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                    f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                    f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                with h5py.File(file_path, 'r+') as f:
+                    nxdata_group = f[aggregator.nxdata_path_name]
+                    nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                    nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                    nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                     volume_data = np.reshape(np.array([i for i in range(24)]), (2, 4, 3))
-                    f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                    nxdata_group.create_dataset("volume", data=volume_data)
                     weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 4, 3))
-                    f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                    nxdata_group.create_dataset("weight", data=weight_data)
 
             with self.assertRaises(AssertionError) as context:
                 aggregator._initialise_arrays()
@@ -222,12 +226,13 @@ class TestMSMAggregator(unittest.TestCase):
 
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, False)
-                with h5py.File(file_path, 'w') as f:
-                    f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                    f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                    f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                with h5py.File(file_path, 'r+') as f:
+                    nxdata_group = f[aggregator.nxdata_path_name]
+                    nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                    nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                    nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                     volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                    f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                    nxdata_group.create_dataset("volume", data=volume_data)
 
             aggregator._initialise_arrays()
             self.assertEqual(aggregator.axes_mins, [0.0, 1.0, -0.4])
@@ -264,17 +269,17 @@ class TestMSMAggregator(unittest.TestCase):
 
             self.create_basic_nexus_file(file_path, True)
             with h5py.File(file_path, 'r+') as f:
-                default_data = f["default_entry/default_data"]
-                default_data.attrs[f"a-axis_indices"] = 0
-                default_data.attrs[f"b-axis_indices"] = 1
-                default_data.attrs[f"c-axis_indices"] = 2
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                nxdata_group = f["default_entry/default_data"]
+                nxdata_group.attrs[f"a-axis_indices"] = 0
+                nxdata_group.attrs[f"b-axis_indices"] = 1
+                nxdata_group.attrs[f"c-axis_indices"] = 2
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             aggregator._get_nxdata()
 
@@ -295,15 +300,15 @@ class TestMSMAggregator(unittest.TestCase):
 
             self.create_basic_nexus_file(file_path, False)
             with h5py.File(file_path, 'r+') as f:
-                default_data = f["default_entry/default_data"]
-                default_data.attrs[f"a-axis_indices"] = 0
-                default_data.attrs[f"b-axis_indices"] = 1
-                default_data.attrs[f"c-axis_indices"] = 2
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                nxdata_group = f["default_entry/default_data"]
+                nxdata_group.attrs[f"a-axis_indices"] = 0
+                nxdata_group.attrs[f"b-axis_indices"] = 1
+                nxdata_group.attrs[f"c-axis_indices"] = 2
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
 
             aggregator._get_nxdata()
 
@@ -323,17 +328,17 @@ class TestMSMAggregator(unittest.TestCase):
 
             self.create_basic_nexus_file(file_path, True)
             with h5py.File(file_path, 'r+') as f:
-                default_data = f["default_entry/default_data"]
-                default_data.attrs[f"a-axis_indices"] = 0
-                default_data.attrs[f"b-axis_indices"] = 1
-                default_data.attrs[f"c-axis_indices"] = 2
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                nxdata_group = f["default_entry/default_data"]
+                nxdata_group.attrs[f"a-axis_indices"] = 0
+                nxdata_group.attrs[f"b-axis_indices"] = 1
+                nxdata_group.attrs[f"c-axis_indices"] = 2
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(6)]), (2, 3))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             with self.assertRaises(AssertionError) as context:
                 aggregator._get_nxdata()
@@ -347,17 +352,17 @@ class TestMSMAggregator(unittest.TestCase):
 
             self.create_basic_nexus_file(file_path, True)
             with h5py.File(file_path, 'r+') as f:
-                default_data = f["default_entry/default_data"]
-                default_data.attrs[f"a-axis_indices"] = 0
-                default_data.attrs[f"b-axis_indices"] = 1
-                default_data.attrs[f"c-axis_indices"] = 2
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+                nxdata_group = f["default_entry/default_data"]
+                nxdata_group.attrs[f"a-axis_indices"] = 0
+                nxdata_group.attrs[f"b-axis_indices"] = 1
+                nxdata_group.attrs[f"c-axis_indices"] = 2
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 4, 3))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             with self.assertRaises(AssertionError) as context:
                 aggregator._get_nxdata()
@@ -589,7 +594,7 @@ class TestMSMAggregator(unittest.TestCase):
                     data_group.attrs["auxiliary_signals"] = ["weight"]
 
                     volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                    f.create_dataset("entry_group/data_group/volume", data=volume_data)
+                    data_group.create_dataset("volume", data=volume_data)
 
             with h5py.File(aggregator.output_data_files[0], 'r') as f:
                 data_group = f[aggregator.nxdata_path_name]
@@ -656,23 +661,25 @@ class TestMSMAggregator(unittest.TestCase):
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, True)
 
-            with h5py.File(file_path_0, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.0, 1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2])
+            with h5py.File(file_path_0, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name ]
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2])
+                nxdata_group.create_dataset("b-axis", data=[1.0, 1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2])
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
-            with h5py.File(file_path_1, 'w') as f:
-                f.create_dataset("default_entry/default_data/a-axis", data=[0.0, 0.2, 0.4])
-                f.create_dataset("default_entry/default_data/b-axis", data=[1.2, 1.4])
-                f.create_dataset("default_entry/default_data/c-axis", data=[-0.4, -0.2, 0.0, 0.2, 0.4])
+            with h5py.File(file_path_1, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name ]
+                nxdata_group.create_dataset("a-axis", data=[0.0, 0.2, 0.4])
+                nxdata_group.create_dataset("b-axis", data=[1.2, 1.4])
+                nxdata_group.create_dataset("c-axis", data=[-0.4, -0.2, 0.0, 0.2, 0.4])
                 volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             aggregator._get_all_axes()
 
@@ -697,17 +704,19 @@ class TestMSMAggregator(unittest.TestCase):
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, True)
 
-            with h5py.File(file_path_0, 'w') as f:
+            with h5py.File(file_path_0, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name]
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
-            with h5py.File(file_path_1, 'w') as f:
+            with h5py.File(file_path_1, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name]
                 volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             aggregator._get_all_axes()
 
@@ -732,17 +741,19 @@ class TestMSMAggregator(unittest.TestCase):
             for file_path in aggregator.output_data_files:
                 self.create_basic_nexus_file(file_path, True)
 
-            with h5py.File(file_path_0, 'w') as f:
+            with h5py.File(file_path_0, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name ]
                 volume_data = np.reshape(np.array([i for i in range(24)]), (2, 3, 4))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 3 for i in range(24)]), (2, 3, 4))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
-            with h5py.File(file_path_1, 'w') as f:
+            with h5py.File(file_path_1, 'r+') as f:
+                nxdata_group = f[aggregator.nxdata_path_name ]
                 volume_data = np.reshape(np.array([i for i in range(30)]), (3, 2, 5))
-                f.create_dataset("default_entry/default_data/volume", data=volume_data)
+                nxdata_group.create_dataset("volume", data=volume_data)
                 weight_data = np.reshape(np.array([i * 2 + 4 for i in range(30)]), (3, 2, 5))
-                f.create_dataset("/".join(("default_entry/default_data", "weight")), data=weight_data)
+                nxdata_group.create_dataset("weight", data=weight_data)
 
             aggregator._get_all_axes()
 
@@ -770,8 +781,8 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator._accumulate_volumes()
 
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
-            volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
-            weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
+            volumes_array = np.array(f["processed/reciprocal_space/volume"])
+            weights_array = np.array(f["processed/reciprocal_space/weight"])
         self.assertEqual(aggregator.accumulator_volume.shape, (83, 77, 13))
         np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
@@ -788,15 +799,15 @@ class TestMSMAggregator(unittest.TestCase):
             aggregator = MSMAggregator()
             aggregator_filepath = aggregator.aggregate(2, cluster_output_dir, sliced_data_files)
             with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
-                volumes_array = np.array(f["processed"]["reciprocal_space"]["volume"])
-                weights_array = np.array(f["processed"]["reciprocal_space"]["weight"])
+                volumes_array = np.array(f["processed/reciprocal_space/volume"])
+                weights_array = np.array(f["processed/reciprocal_space/weight"])
             np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
             np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
 
             self.assertEqual(aggregator_filepath, cluster_output_dir / "aggregated_results.nxs")
             with h5py.File(aggregator_filepath, "r") as af:
-                aggregated_volumes = np.array(af["processed"]["reciprocal_space"]["volume"])
-                aggregated_weights = np.array(af["processed"]["reciprocal_space"]["weight"])
+                aggregated_volumes = np.array(af["processed/reciprocal_space/volume"])
+                aggregated_weights = np.array(af["processed/reciprocal_space/weight"])
             np.testing.assert_allclose(volumes_array, aggregated_volumes, rtol=0.001)
             np.testing.assert_allclose(weights_array, aggregated_weights, rtol=0.001)
 
