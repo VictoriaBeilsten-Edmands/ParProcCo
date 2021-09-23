@@ -4,6 +4,7 @@ import getpass
 import logging
 import unittest
 from pathlib import Path
+from parameterized import parameterized
 from tempfile import TemporaryDirectory
 
 from simple_data_slicer import SimpleDataSlicer
@@ -29,71 +30,34 @@ class TestDataSlicer(unittest.TestCase):
             logging.debug(f"Making directory {self.base_dir}")
             Path(self.base_dir).mkdir(exist_ok=True)
 
-    def test_slices(self) -> None:
+    @parameterized.expand([
+        ("all_ok", [4], {"stop": 8}, None, 4, [slice(0, 8, 4), slice(1, 8, 4), slice(2, 8, 4), slice(3, 8, 4)]),
+        ("no_stop", [4], {}, None, 4, [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)]),
+        ("stop_not_int", [4], {"stop": "8"}, "stop is <class 'str'>, should be int", None, None),
+        ("number_jobs_not_int", ["4"], {}, "number_jobs is <class 'str'>, should be int", None, None),
+        ("too_many_slices", [20], {}, None, 11,
+         [slice(0, 11, 11), slice(1, 11, 11), slice(2, 11, 11), slice(3, 11, 11), slice(4, 11, 11), slice(5, 11, 11),
+          slice(6, 11, 11), slice(7, 11, 11), slice(8, 11, 11), slice(9, 11, 11), slice(10, 11, 11)]),
+        ("stop_too_big", [4], {"stop": 20}, None, 4,
+         [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)])
+    ])
+    def test_slices(self, name, args, kwargs, error_msg, expected_length, expected_slices) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_file_path = setup_data_file(working_directory)
 
             slicer = SimpleDataSlicer()
-            slices = slicer.slice(input_file_path, 4, stop=8)
+            args.insert(0, input_file_path)
 
-            self.assertEqual(len(slices), 4)
+            if error_msg:
+                with self.assertRaises(TypeError) as context:
+                    slicer.slice(*args, **kwargs)
+                self.assertTrue(error_msg in str(context.exception))
+                return
 
-            self.assertEqual(slices, [slice(0, 8, 4), slice(1, 8, 4), slice(2, 8, 4), slice(3, 8, 4)])
+            slices = slicer.slice(*args, **kwargs)
 
-    def test_no_stop(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_file_path = setup_data_file(working_directory)
-
-            slicer = SimpleDataSlicer()
-            slices = slicer.slice(input_file_path, 4)
-
-            self.assertEqual(len(slices), 4)
-
-            self.assertEqual(slices, [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)])
-
-    def test_stop_not_int(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_file_path = setup_data_file(working_directory)
-
-            slicer = SimpleDataSlicer()
-
-            with self.assertRaises(TypeError) as context:
-                slicer.slice(input_file_path, 4, stop="8")
-            self.assertTrue("stop is <class 'str'>, should be int" in str(context.exception))
-
-    def test_number_jobs_not_int(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_file_path = setup_data_file(working_directory)
-
-            slicer = SimpleDataSlicer()
-
-            with self.assertRaises(TypeError) as context:
-                slicer.slice(input_file_path, "4")
-            self.assertTrue("number_jobs is <class 'str'>, should be int" in str(context.exception))
-
-    def test_too_many_slices(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_file_path = setup_data_file(working_directory)
-
-            slicer = SimpleDataSlicer()
-            slices = slicer.slice(input_file_path, 20)
-
-            self.assertEqual(len(slices), 11)
-
-            self.assertEqual(slices, [slice(0, 11, 11), slice(1, 11, 11), slice(2, 11, 11), slice(3, 11, 11),
-                                      slice(4, 11, 11), slice(5, 11, 11), slice(6, 11, 11), slice(7, 11, 11),
-                                      slice(8, 11, 11), slice(9, 11, 11), slice(10, 11, 11)])
-
-    def test_stop_too_big(self) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_file_path = setup_data_file(working_directory)
-
-            slicer = SimpleDataSlicer()
-            slices = slicer.slice(input_file_path, 4, stop=20)
-
-            self.assertEqual(len(slices), 4)
-
-            self.assertEqual(slices, [slice(0, 11, 4), slice(1, 11, 4), slice(2, 11, 4), slice(3, 11, 4)])
+            self.assertEqual(len(slices), expected_length)
+            self.assertEqual(slices, expected_slices)
 
 
 if __name__ == '__main__':
