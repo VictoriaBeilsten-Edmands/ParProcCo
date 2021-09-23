@@ -100,8 +100,6 @@ class JobScheduler:
 
     def _run_and_monitor(self, jobscript: Path, input_path: Path, slice_params: List[slice]) -> None:
         jobscript = self.check_jobscript(jobscript)
-        self.status_infos = []
-
         session = JobSession()  # Automatically destroyed when it is out of scope
         self._run_jobs(session, jobscript, input_path, slice_params)
         self._wait_for_jobs(session)
@@ -111,6 +109,7 @@ class JobScheduler:
         logging.debug(f"Running jobs on cluster for {input_path}")
         try:
             # Run all input paths in parallel:
+            self.status_infos = []
             for i, slice_param in enumerate(slice_params):
                 template = self._create_template(input_path, jobscript, slice_param, i)
                 logging.debug(f"Submitting drmaa job with file {input_path}")
