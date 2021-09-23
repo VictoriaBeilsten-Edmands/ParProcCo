@@ -27,15 +27,15 @@ class JobController:
                  timeout: timedelta = timedelta(hours=2)):
         """JobController is used to coordinate cluster job submissions with JobScheduler"""
 
-        self.working_directory = Path(working_directory)
+        self.cpus = cpus
         self.cluster_output_dir = Path(cluster_output_dir)
+        self.data_aggregator: AggregatorInterface
+        self.data_slicer: SlicerInterface
         self.project = project
         self.queue = queue
-        self.cpus = cpus
-        self.timeout = timeout
         self.scheduler: JobScheduler = None
-        self.data_slicer: SlicerInterface
-        self.data_aggregator: AggregatorInterface
+        self.timeout = timeout
+        self.working_directory = Path(working_directory)
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
             number_jobs: int, processing_script: Path) -> Path:

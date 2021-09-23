@@ -29,18 +29,18 @@ class JobScheduler:
     def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16,
                  timeout: timedelta = timedelta(hours=2)):
         """JobScheduler can be used for cluster job submissions"""
-        self.working_directory = Path(working_directory)
+        self.batch_number = 0
         self.cluster_output_dir = Path(cluster_output_dir)
+        self.cpus = cpus
+        self.job_completion_status: Dict[str, bool] = {}
+        self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
+        self.output_paths: List[Path] = []
         self.project = self.check_project_list(project)
         self.queue = self.check_queue_list(queue)
-        self.cpus = cpus
-        self.timeout = timeout
-        self.batch_number = 0
-        self.output_paths: List[Path] = []
         self.start_time = datetime.now()
-        self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
-        self.job_completion_status: Dict[str, bool] = {}
         self.status_infos: List[StatusInfo]
+        self.timeout = timeout
+        self.working_directory = Path(working_directory)
 
     def check_queue_list(self, queue: str) -> str:
         if not queue:
