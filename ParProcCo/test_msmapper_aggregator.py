@@ -5,13 +5,13 @@ import logging
 import unittest
 import warnings
 from pathlib import Path
-from parameterized import parameterized
 from tempfile import TemporaryDirectory
 
 import h5py
-import numpy as np
 import msmapper_aggregator
+import numpy as np
 from msmapper_aggregator import MSMAggregator
+from parameterized import parameterized
 
 
 class TestMSMAggregator(unittest.TestCase):
@@ -184,7 +184,8 @@ class TestMSMAggregator(unittest.TestCase):
             self.assertEqual(aggregator.all_slices, [[slice(0, 2), slice(0, 3), slice(0, 4)],
                                                      [slice(0, 3), slice(1, 3), slice(0, 5)]])
             self.assertEqual(aggregator.accumulator_axis_lengths, [3, 3, 5])
-            for l, e in zip(aggregator.accumulator_axis_ranges, [[0.0, 0.2, 0.4], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]]):
+            for l, e in zip(aggregator.accumulator_axis_ranges,
+                            [[0.0, 0.2, 0.4], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]]):
                 np.testing.assert_allclose(np.array(l), e, rtol=1e-14)
             self.assertTrue(np.array_equal(aggregator.accumulator_volume, np.zeros([3, 3, 5])))
             if has_weight:
@@ -311,7 +312,8 @@ class TestMSMAggregator(unittest.TestCase):
         ("other_signal", "other", ["weight"], True, False, KeyError)
 
     ])
-    def test_get_default_signals_and_axes(self, name, signal, aux_signals, renormalisation, accumulate_aux_signals, error_name) -> None:
+    def test_get_default_signals_and_axes(
+            self, name, signal, aux_signals, renormalisation, accumulate_aux_signals, error_name) -> None:
         aggregator = MSMAggregator()
         aggregator.nxentry_name = "entry_group"
         aggregator.nxdata_name = "data_group"
@@ -430,7 +432,9 @@ class TestMSMAggregator(unittest.TestCase):
             aggregator._get_all_axes()
 
             self.assertEqual(aggregator.signal_shapes, [(2, 3, 4), (3, 2, 5)])
-            self.assertEqual(aggregator.all_axes, [[[0.0, 0.2], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2]], [[0.0, 0.2, 0.4], [1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]]])
+            self.assertEqual(aggregator.all_axes,
+                             [[[0.0, 0.2], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2]],
+                              [[0.0, 0.2, 0.4], [1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]]])
             np.testing.assert_allclose(aggregator.axes_spacing, [0.2, 0.2, 0.2], rtol=1e-14)
 
     def test_get_all_axes_no_axes_data(self) -> None:
@@ -467,7 +471,8 @@ class TestMSMAggregator(unittest.TestCase):
             aggregator._get_all_axes()
 
             self.assertEqual(aggregator.signal_shapes, [(2, 3, 4), (3, 2, 5)])
-            self.assertEqual(aggregator.all_axes, [[[0, 1], [0, 1, 2], [0, 1, 2, 3]], [[0, 1, 2], [0, 1], [0, 1, 2, 3, 4]]])
+            self.assertEqual(aggregator.all_axes,
+                             [[[0, 1], [0, 1, 2], [0, 1, 2, 3]], [[0, 1, 2], [0, 1], [0, 1, 2, 3, 4]]])
             self.assertEqual(aggregator.axes_spacing, [1, 1, 1])
 
     def test_accumulate_volumes(self) -> None:

@@ -234,8 +234,10 @@ class TestJobScheduler(unittest.TestCase):
 
     @parameterized.expand([
         ("bad_name", "bad_jobscript_name.sh", False, None, FileNotFoundError, "does not exist"),
-        ("insufficient_permissions", "test_bad_permissions.sh", True, 0o666, PermissionError, "must be readable and executable by user"),
-        ("cannot_be_opened", "test_bad_read_permissions.sh", True, 0o333, PermissionError, "must be readable and executable by user")
+        ("insufficient_permissions", "test_bad_permissions.sh", True, 0o666, PermissionError,
+         "must be readable and executable by user"),
+        ("cannot_be_opened", "test_bad_read_permissions.sh", True, 0o333, PermissionError,
+         "must be readable and executable by user")
     ])
     def test_jobscript(self, name, js_name, open_js, permissions, error_name, error_msg) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:

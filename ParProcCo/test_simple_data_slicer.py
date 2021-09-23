@@ -4,9 +4,9 @@ import getpass
 import logging
 import unittest
 from pathlib import Path
-from parameterized import parameterized
 from tempfile import TemporaryDirectory
 
+from parameterized import parameterized
 from simple_data_slicer import SimpleDataSlicer
 
 

@@ -237,8 +237,8 @@ class MSMAggregator(AggregatorInterface):
 
             data_group = processed.create_group(self.nxdata_name)
             data_group.attrs["NX_class"] = "NXdata"
-            if self.aux_signal_names:
-                data_group.attrs["auxiliary_signals"] = self.aux_signal_names
+            if self.renormalisation:
+                data_group.attrs["auxiliary_signals"] = "weight"
             data_group.attrs["axes"] = self.axes_names
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
