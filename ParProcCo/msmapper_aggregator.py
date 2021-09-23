@@ -96,8 +96,7 @@ class MSMAggregator(AggregatorInterface):
         for i in range(self.data_dimensions):
             length = int(round((self.axes_maxs[i] - self.axes_mins[i]) / self.axes_spacing[i])) + 1
             self.accumulator_axis_lengths.append(length)
-            ranges = [round(x * self.axes_spacing[i] + self.axes_mins[i], 4)
-                      for x in range(self.accumulator_axis_lengths[i])]
+            ranges = [x * self.axes_spacing[i] + self.axes_mins[i] for x in np.arange(self.accumulator_axis_lengths[i])]
             self.accumulator_axis_ranges.append(ranges)
 
         for axes, slices in zip(self.all_axes, self.all_slices):
@@ -196,7 +195,8 @@ class MSMAggregator(AggregatorInterface):
                 else:
                     axes = [list(f[self.nxdata_path_name][axis_name]) for axis_name in self.axes_names]
                 self.all_axes.append(axes)
-        self.axes_spacing = [round((axis[1] - axis[0]), 6) for axis in axes]
+        self.axes_spacing = [np.mean([np.mean(np.diff(axis)) for axis in axis_set])
+                             for axis_set in [list(x) for x in zip(*self.all_axes)]]
 
     def _accumulate_volumes(self) -> None:
         for data_file, slices in zip(self.output_data_files, self.all_slices):
