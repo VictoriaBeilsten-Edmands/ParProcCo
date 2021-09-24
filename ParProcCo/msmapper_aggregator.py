@@ -215,13 +215,13 @@ class MSMAggregator(AggregatorInterface):
 
             if self.renormalisation:
                 volume = np.multiply(volume, weights)
-                self.accumulator_weights[slices] += weights
+                self.accumulator_weights[tuple(slices)] += weights
                 aux_signals = [np.multiply(aux_signal, weights) for aux_signal in aux_signals]
 
-            self.accumulator_volume[slices] += volume
+            self.accumulator_volume[tuple(slices)] += volume
 
             for count, aux_signal in enumerate(aux_signals):
-                self.accumulator_aux_signals[count][slices] += aux_signal
+                self.accumulator_aux_signals[count][tuple(slices)] += aux_signal
 
         if self.renormalisation:
             self.accumulator_volume = self.accumulator_volume / self.accumulator_weights
