@@ -137,7 +137,7 @@ class JobScheduler:
         err_fp = str(self.cluster_output_dir / err_file)
         self.output_paths.append(Path(output_fp))
         slice_param_str = f"{slice_param.start}:{slice_param.stop}:{slice_param.step}"
-        args = f"--input_path", str(input_path), f"--output_path", str(output_fp), f"-I", slice_param_str
+        args = "--input_path", str(input_path), "--output_path", str(output_fp), "-I", slice_param_str
 
         jt = JobTemplate({
             "job_name": job_name,
