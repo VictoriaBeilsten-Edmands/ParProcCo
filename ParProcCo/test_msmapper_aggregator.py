@@ -530,6 +530,12 @@ class TestMSMAggregator(unittest.TestCase):
                         nxdata_group.create_dataset(name, data=signal)
 
             aggregator._accumulate_volumes()
+            self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
+            if renormalisation:
+                self.assertEqual(aggregator.accumulator_weights.shape, (3, 3, 5))
+            if non_weight_aux_signal_names:
+                for volume in aggregator.accumulator_aux_signals:
+                                self.assertEqual(volume.shape, (3, 3, 5))
 
     def test_accumulate_volumes_applied_data(self) -> None:
         aggregator = MSMAggregator()
