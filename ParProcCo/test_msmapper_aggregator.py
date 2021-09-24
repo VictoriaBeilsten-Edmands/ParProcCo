@@ -59,8 +59,8 @@ class TestMSMAggregator(unittest.TestCase):
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed/reciprocal_space/volume"])
             weights_array = np.array(f["processed/reciprocal_space/weight"])
-        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
-        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
+        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
+        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
     def test_check_total_slices_not_int(self) -> None:
         total_slices = "1"
@@ -107,7 +107,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator._initialise_arrays()
 
         self.assertEqual(aggregator.axes_mins, [-0.2, -0.08, 0.86])
-        self.assertEqual(aggregator.axes_maxs, [1.4400000000000002, 1.44, 1.1])
+        np.testing.assert_allclose(aggregator.axes_maxs, [1.44, 1.44, 1.1])
 
         self.assertEqual(aggregator.accumulator_axis_lengths, [83, 77, 13])
         self.assertEqual(len(aggregator.accumulator_axis_ranges), 3)
@@ -122,7 +122,7 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.accumulator_axis_ranges[2][-1], 1.1)
         self.assertTrue(np.array_equal(aggregator.accumulator_volume, np.zeros([83, 77, 13])))
         self.assertTrue(np.array_equal(aggregator.accumulator_weights, np.zeros([83, 77, 13])))
-        self.assertEqual(aggregator.all_slices, [[slice(0, 83), slice(0, 76), slice(0, 13)],
+        self.assertEqual(aggregator.all_slices, [[slice(0, 83), slice(0, 77), slice(0, 13)],
                                                  [slice(0, 83), slice(0, 77), slice(0, 13)]])
 
     @parameterized.expand([
@@ -536,22 +536,26 @@ class TestMSMAggregator(unittest.TestCase):
                     12.05454545, 13.05084746, 14.04761905, 14., 15.50724638, 16.50684932, 17.50649351, 18.50617284, 19.,
                     20., 21., 22., 23., 0., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 0., 0., 0., 0., 0.
                 ]
+                self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
+                np.testing.assert_allclose(aggregator.accumulator_volume,
+                                           np.array(volume).reshape(3, 3, 5), rtol=6.9e-9)
                 weight = [
                     7., 11., 15., 19., 12., 25., 29., 33., 37., 22., 19., 21., 23., 25., 0., 51., 55., 59., 63., 32.,
                     69., 73., 77., 81., 42., 43., 45., 47., 49., 0., 44., 46., 48., 50., 52., 54., 56., 58., 60., 62.,
                     0., 0., 0., 0., 0.
                 ]
-                np.testing.assert_allclose(aggregator.accumulator_weights, np.array(weight).reshape(3, 3, 5), rtol=1e-9)
+                np.testing.assert_allclose(aggregator.accumulator_weights,
+                                           np.array(weight).reshape(3, 3, 5), rtol=1e-14)
             else:
                 volume = [
                     0., 2., 4., 6., 4., 9., 11., 13., 15., 9., 8., 9., 10., 11., 0., 22., 24., 26., 28., 14., 31., 33.,
                     35., 37., 19., 20., 21., 22., 23., 0., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 0., 0., 0.,
                     0., 0.
                 ]
+                self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
+                np.testing.assert_allclose(aggregator.accumulator_volume, np.array(volume).reshape(3, 3, 5), rtol=1e-14)
                 self.assertFalse(hasattr(aggregator, "accumulator_weights"))
 
-            self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
-            np.testing.assert_allclose(aggregator.accumulator_volume, np.array(volume).reshape(3, 3, 5), rtol=1e-9)
             for aux_signal in aggregator.accumulator_aux_signals:
                 self.assertEqual(aux_signal.shape, (3, 3, 5))
                 if renormalisation:
@@ -560,14 +564,14 @@ class TestMSMAggregator(unittest.TestCase):
                         4281., 4999., 5773., 6603., 3744., 7995., 8969., 9999., 11085., 6594., 5633., 6165., 6721.,
                         7301., 0., 7260., 7958., 8688., 9450., 10244., 11070., 11928., 12818., 13740., 14694., 0., 0.,
                         0., 0., 0.
-                        ]
+                    ]
                 else:
                     signal = [
                         16., 30., 44., 58., 37., 80., 94., 108., 122., 77., 59., 65., 71., 77., 0., 168., 182., 196.,
                         210., 117., 232., 246., 260., 274., 157., 131., 137., 143., 149., 0., 165., 173., 181., 189.,
                         197., 205., 213., 221., 229., 237., 0., 0., 0., 0., 0.
                     ]
-                np.testing.assert_allclose(aux_signal, np.array(signal).reshape(3, 3, 5), rtol=1e-9)
+                np.testing.assert_allclose(aux_signal, np.array(signal).reshape(3, 3, 5), rtol=1e-14)
 
     def test_accumulate_volumes_applied_data(self) -> None:
         aggregator = MSMAggregator()
@@ -587,18 +591,18 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.axes_mins = [-0.2, -0.08, 0.86]
         aggregator.axes_spacing = [0.02, 0.02, 0.02]
         aggregator.accumulator_axis_lengths = [83, 77, 13]
-        aggregator.accumulator_axis_ranges = [[(round((x * aggregator.axes_spacing[i]), 4) + aggregator.axes_mins[i])
+        aggregator.accumulator_axis_ranges = [[x * aggregator.axes_spacing[i] + aggregator.axes_mins[i]
                                                for x in range(aggregator.accumulator_axis_lengths[i])]
                                               for i in range(3)]
-        aggregator.all_slices = [[slice(0, 83), slice(0, 76), slice(0, 13)], [slice(0, 83), slice(0, 77), slice(0, 13)]]
+        aggregator.all_slices = [[slice(0, 83), slice(0, 77), slice(0, 13)], [slice(0, 83), slice(0, 77), slice(0, 13)]]
         aggregator._accumulate_volumes()
 
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed/reciprocal_space/volume"])
             weights_array = np.array(f["processed/reciprocal_space/weight"])
         self.assertEqual(aggregator.accumulator_volume.shape, (83, 77, 13))
-        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
-        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
+        np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
+        np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
     def test_write_aggregation_file(self) -> None:
         output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
@@ -614,15 +618,15 @@ class TestMSMAggregator(unittest.TestCase):
             with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
                 volumes_array = np.array(f["processed/reciprocal_space/volume"])
                 weights_array = np.array(f["processed/reciprocal_space/weight"])
-            np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=0.001)
-            np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=0.001)
+            np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
+            np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
             self.assertEqual(aggregator_filepath, cluster_output_dir / "aggregated_results.nxs")
             with h5py.File(aggregator_filepath, "r") as af:
                 aggregated_volumes = np.array(af["processed/reciprocal_space/volume"])
                 aggregated_weights = np.array(af["processed/reciprocal_space/weight"])
-            np.testing.assert_allclose(volumes_array, aggregated_volumes, rtol=0.001)
-            np.testing.assert_allclose(weights_array, aggregated_weights, rtol=0.001)
+            np.testing.assert_allclose(volumes_array, aggregated_volumes, rtol=1e-12)
+            np.testing.assert_allclose(weights_array, aggregated_weights, rtol=2.1e-14)
 
 
 if __name__ == '__main__':
