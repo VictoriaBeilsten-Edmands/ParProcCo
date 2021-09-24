@@ -21,7 +21,7 @@ def decode_to_string(any_string: AnyStr) -> str:
 class MSMAggregator(AggregatorInterface):
 
     def __init__(self) -> None:
-        self.accumulate_aux_signals: bool
+        self.accumulator_aux_signals: List
         self.accumulator_axis_lengths: List
         self.accumulator_axis_ranges: List
         self.accumulator_volume: np.ndarray
@@ -34,6 +34,7 @@ class MSMAggregator(AggregatorInterface):
         self.axes_names: List[str]
         self.axes_spacing: List
         self.data_dimensions: int
+        self.non_weight_aux_signal_names: Union[None, List[str]]
         self.nxdata_name: str
         self.nxdata_path_name: str
         self.nxentry_name: str
@@ -107,6 +108,8 @@ class MSMAggregator(AggregatorInterface):
         self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
         if self.renormalisation:
             self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
+        if self.non_weight_aux_signal_names:
+            self.accumulator_aux_signals = [np.zeros(self.accumulator_axis_lengths)] * len(self.non_weight_aux_signal_names)
 
     def _get_nxdata(self):
         """sets self.nxentry_name, self.nxdata_name and self.axes_names """
@@ -149,12 +152,12 @@ class MSMAggregator(AggregatorInterface):
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Group) -> None:
         self.renormalisation = False
-        self.accumulate_aux_signals = False
+        self.non_weight_aux_signal_names = None
 
         if "auxiliary_signals" in nxdata.attrs:
             self.aux_signal_names = [decode_to_string(name) for name in nxdata.attrs["auxiliary_signals"]]
-            # TODO: add code to accumulate aux_signals
-            self.accumulate_aux_signals = self.aux_signal_names != ["weight"]
+            if self.aux_signal_names != ["weight"]:
+                self.non_weight_aux_signal_names = [name for name in self.aux_signal_names if name != "weight"]
             if "weight" in self.aux_signal_names:
                 self.renormalisation = True
         else:
@@ -187,9 +190,10 @@ class MSMAggregator(AggregatorInterface):
                 signal_shape = f[self.nxdata_path_name][self.signal_name].shape
                 assert len(signal_shape) == self.data_dimensions
                 self.signal_shapes.append(signal_shape)
-                if self.renormalisation:
-                    weights_shape = f[self.nxdata_path_name]["weight"].shape
-                    assert signal_shape == weights_shape, "signal_shape must equal weights_shape"
+                if self.aux_signal_names:
+                    for aux_signal_name in self.aux_signal_names:
+                        aux_signal_shape = f[self.nxdata_path_name][aux_signal_name].shape
+                        assert signal_shape == aux_signal_shape, f"{aux_signal_name} shape must equal signal_shape"
                 if self.use_default_axes:
                     axes = [list(range(length)) for length in signal_shape]
                 else:
@@ -201,24 +205,34 @@ class MSMAggregator(AggregatorInterface):
     def _accumulate_volumes(self) -> None:
         for data_file, slices in zip(self.output_data_files, self.all_slices):
             with h5py.File(data_file, "r") as f:
-                volumes = []
-                volumes = [np.array(f[self.nxdata_path_name][self.signal_name])]
+                aux_signals = []
+                volume = np.array(f[self.nxdata_path_name][self.signal_name])
                 if self.renormalisation:
                     weights = np.array(f[self.nxdata_path_name]["weight"])
-                if self.accumulate_aux_signals:
-                    extra_signal_names = [name for name in self.aux_signal_names if name != "weight"]
-                    volumes += [np.array(f[self.nxdata_path_name][name]) for name in extra_signal_names]
+                if self.non_weight_aux_signal_names:
+                    for name in self.non_weight_aux_signal_names:
+                        aux_signals.append(np.array(f[self.nxdata_path_name][name]))
 
             if self.renormalisation:
-                volumes = [np.multiply(volume, weights) for volume in volumes]
+                volume = np.multiply(volume, weights)
                 self.accumulator_weights[slices] += weights
-            for volume in volumes:
-                self.accumulator_volume[slices] += volume
+                aux_signals = [np.multiply(aux_signal, weights) for aux_signal in aux_signals]
+
+            self.accumulator_volume[slices] += volume
+
+            for count, aux_signal in enumerate(aux_signals):
+                self.accumulator_aux_signals[count][slices] += aux_signal
 
         if self.renormalisation:
             self.accumulator_volume = self.accumulator_volume / self.accumulator_weights
+            if self.non_weight_aux_signal_names:
+                self.accumulator_aux_signals = self.accumulator_aux_signals / self.accumulator_weights
 
         self.accumulator_volume[np.isnan(self.accumulator_volume)] = 0
+
+        if self.non_weight_aux_signal_names:
+            for aux_signal in self.accumulator_aux_signals:
+                aux_signal[np.isnan(aux_signal)] = 0
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
         aggregated_data_file = aggregation_output_dir / "aggregated_results.nxs"
@@ -237,8 +251,8 @@ class MSMAggregator(AggregatorInterface):
 
             data_group = processed.create_group(self.nxdata_name)
             data_group.attrs["NX_class"] = "NXdata"
-            if self.renormalisation:
-                data_group.attrs["auxiliary_signals"] = "weight"
+            if self.aux_signal_names:
+                data_group.attrs["auxiliary_signals"] = self.aux_signal_names
             data_group.attrs["axes"] = self.axes_names
             data_group.attrs["signal"] = self.signal_name
             for i, axis in enumerate(self.axes_names):
@@ -247,6 +261,9 @@ class MSMAggregator(AggregatorInterface):
             data_group.create_dataset(self.signal_name, data=self.accumulator_volume)
             if self.renormalisation:
                 data_group.create_dataset("weight", data=self.accumulator_weights)
+            if self.non_weight_aux_signal_names:
+                for name, dataset in zip(self.non_weight_aux_signal_names, self.accumulator_aux_signals):
+                    data_group.create_dataset(name, data=dataset)
 
             f.attrs["default"] = self.nxentry_name
 
