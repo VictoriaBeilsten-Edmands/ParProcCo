@@ -4,7 +4,7 @@ import string
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AnyStr, List, Tuple, Union
+from typing import AnyStr, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
@@ -21,20 +21,20 @@ def decode_to_string(any_string: AnyStr) -> str:
 class MSMAggregator(AggregatorInterface):
 
     def __init__(self) -> None:
-        self.accumulator_aux_signals: List
+        self.accumulator_aux_signals: List[np.ndarray]
         self.accumulator_axis_lengths: List
         self.accumulator_axis_ranges: List
         self.accumulator_volume: np.ndarray
         self.accumulator_weights: np.ndarray
         self.all_axes: List[List]
         self.all_slices: List[List[slice]]
-        self.aux_signal_names: Union[None, List[str]]
+        self.aux_signal_names: Optional[List[str]]
         self.axes_maxs: List
         self.axes_mins: List
         self.axes_names: List[str]
         self.axes_spacing: List
         self.data_dimensions: int
-        self.non_weight_aux_signal_names: Union[None, List[str]]
+        self.non_weight_aux_signal_names: List[str]
         self.nxdata_name: str
         self.nxdata_path_name: str
         self.nxentry_name: str
@@ -106,10 +106,9 @@ class MSMAggregator(AggregatorInterface):
                     raise RuntimeError(f"axis does not match slice {single_slice} of accumulator_axis_range")
 
         self.accumulator_volume = np.zeros(self.accumulator_axis_lengths)
+        self.accumulator_aux_signals = [np.zeros(self.accumulator_axis_lengths)] * len(self.non_weight_aux_signal_names)
         if self.renormalisation:
             self.accumulator_weights = np.zeros(self.accumulator_axis_lengths)
-        if self.non_weight_aux_signal_names:
-            self.accumulator_aux_signals = [np.zeros(self.accumulator_axis_lengths)] * len(self.non_weight_aux_signal_names)
 
     def _get_nxdata(self):
         """sets self.nxentry_name, self.nxdata_name and self.axes_names """
@@ -152,12 +151,11 @@ class MSMAggregator(AggregatorInterface):
 
     def _get_default_signals_and_axes(self, nxdata: h5py.Group) -> None:
         self.renormalisation = False
-        self.non_weight_aux_signal_names = None
+        self.non_weight_aux_signal_names = []
 
         if "auxiliary_signals" in nxdata.attrs:
             self.aux_signal_names = [decode_to_string(name) for name in nxdata.attrs["auxiliary_signals"]]
-            if self.aux_signal_names != ["weight"]:
-                self.non_weight_aux_signal_names = [name for name in self.aux_signal_names if name != "weight"]
+            self.non_weight_aux_signal_names = [name for name in self.aux_signal_names if name != "weight"]
             if "weight" in self.aux_signal_names:
                 self.renormalisation = True
         else:
@@ -209,9 +207,8 @@ class MSMAggregator(AggregatorInterface):
                 volume = np.array(f[self.nxdata_path_name][self.signal_name])
                 if self.renormalisation:
                     weights = np.array(f[self.nxdata_path_name]["weight"])
-                if self.non_weight_aux_signal_names:
-                    for name in self.non_weight_aux_signal_names:
-                        aux_signals.append(np.array(f[self.nxdata_path_name][name]))
+                for name in self.non_weight_aux_signal_names:
+                    aux_signals.append(np.array(f[self.nxdata_path_name][name]))
 
             if self.renormalisation:
                 volume = np.multiply(volume, weights)
@@ -220,18 +217,14 @@ class MSMAggregator(AggregatorInterface):
 
             self.accumulator_volume[tuple(slices)] += volume
 
-            for count, aux_signal in enumerate(aux_signals):
-                self.accumulator_aux_signals[count][tuple(slices)] += aux_signal
+            for signal, accumulator_signal in zip(aux_signals, self.accumulator_aux_signals):
+                accumulator_signal[tuple(slices)] += signal
 
         if self.renormalisation:
             self.accumulator_volume = self.accumulator_volume / self.accumulator_weights
-            if self.non_weight_aux_signal_names:
-                self.accumulator_aux_signals = self.accumulator_aux_signals / self.accumulator_weights
-
-        self.accumulator_volume[np.isnan(self.accumulator_volume)] = 0
-
-        if self.non_weight_aux_signal_names:
+            self.accumulator_volume[np.isnan(self.accumulator_volume)] = 0
             for aux_signal in self.accumulator_aux_signals:
+                aux_signal = aux_signal / self.accumulator_weights
                 aux_signal[np.isnan(aux_signal)] = 0
 
     def _write_aggregation_file(self, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
@@ -261,9 +254,8 @@ class MSMAggregator(AggregatorInterface):
             data_group.create_dataset(self.signal_name, data=self.accumulator_volume)
             if self.renormalisation:
                 data_group.create_dataset("weight", data=self.accumulator_weights)
-            if self.non_weight_aux_signal_names:
-                for name, dataset in zip(self.non_weight_aux_signal_names, self.accumulator_aux_signals):
-                    data_group.create_dataset(name, data=dataset)
+            for name, dataset in zip(self.non_weight_aux_signal_names, self.accumulator_aux_signals):
+                data_group.create_dataset(name, data=dataset)
 
             f.attrs["default"] = self.nxentry_name
 

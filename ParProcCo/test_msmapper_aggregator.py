@@ -102,7 +102,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.axes_spacing = [0.02, 0.02, 0.02]
         aggregator.renormalisation = True
         aggregator.aux_signal_names = ["weight"]
-        aggregator.non_weight_aux_signal_names = None
+        aggregator.non_weight_aux_signal_names = []
 
         aggregator._initialise_arrays()
 
@@ -126,9 +126,9 @@ class TestMSMAggregator(unittest.TestCase):
                                                  [slice(0, 83), slice(0, 77), slice(0, 13)]])
 
     @parameterized.expand([
-        ("normal", (2, 3, 4), True, ["weight"], None, None, None),
-        ("no_aux", (2, 3, 4), False, None, None, None, None),
-        ("axes_wrong", (2, 4, 3), True, ["weight"], None, AssertionError, "axes_lengths must equal volumes_array.shape"),
+        ("normal", (2, 3, 4), True, ["weight"], [], None, None),
+        ("no_aux", (2, 3, 4), False, None, [], None, None),
+        ("axes_wrong", (2, 4, 3), True, ["weight"], [], AssertionError, "axes_lengths must equal volumes_array.shape"),
         ("non_weight_signals", (2, 3, 4), False, ["other_0", "other_1"], ["other_0", "other_1"], None, None),
         ("non_weight_signals_plus_weight", (2, 3, 4), True, ["weight", "other_0", "other_1"], ["other_0", "other_1"], None, None)
     ])
@@ -208,7 +208,7 @@ class TestMSMAggregator(unittest.TestCase):
                 for signal in aggregator.accumulator_aux_signals:
                     np.testing.assert_array_equal(signal, np.zeros((3, 3, 5)))
             else:
-                self.assertFalse(hasattr(aggregator, "accumulator_aux_signals"))
+                self.assertEqual(aggregator.accumulator_aux_signals, [])
 
     def test_get_nxdata_applied_data(self) -> None:
         output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
@@ -219,7 +219,7 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.nxentry_name, "processed")
         self.assertEqual(aggregator.nxdata_name, "reciprocal_space")
         self.assertEqual(aggregator.aux_signal_names, ["weight"])
-        self.assertEqual(aggregator.non_weight_aux_signal_names, None)
+        self.assertEqual(aggregator.non_weight_aux_signal_names, [])
         self.assertEqual(aggregator.renormalisation, True)
         self.assertEqual(aggregator.signal_name, "volume")
         self.assertEqual(aggregator.axes_names, ["h-axis", "k-axis", "l-axis"])
@@ -268,10 +268,10 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.renormalisation, has_weight)
         if has_weight:
             self.assertEqual(aggregator.aux_signal_names, ["weight"])
-            self.assertEqual(aggregator.non_weight_aux_signal_names, None)
+            self.assertEqual(aggregator.non_weight_aux_signal_names, [])
         else:
             self.assertEqual(aggregator.aux_signal_names, None)
-            self.assertEqual(aggregator.non_weight_aux_signal_names, None)
+            self.assertEqual(aggregator.non_weight_aux_signal_names, [])
 
     @parameterized.expand([
         ("normal", "NXentry", "default_entry", True, None, None),
@@ -320,14 +320,14 @@ class TestMSMAggregator(unittest.TestCase):
                 self.assertTrue("KeyError: entry0 could not be accessed" in str(w[0].message))
 
     @parameterized.expand([
-        ("normal", "volume", ["weight"], True, None, None),
-        ("no_aux_signals", "volume", None, False, None, None),
+        ("normal", "volume", ["weight"], True, [], None),
+        ("no_aux_signals", "volume", None, False, [], None),
         ("no_weight_signal", "volume", ["other"], False, ["other"], None),
         ("extra_aux_signals", "volume", ["weight", "other"], True, ["other"], None),
-        ("data_as_signal", "data", ["weight"], True, None, None),
-        ("no_axes", "volume", ["weight"], True, None, None),
-        ("no_signal_or_data", None, ["weight"], True, None, KeyError),
-        ("other_signal", "other", ["weight"], True, None, KeyError)
+        ("data_as_signal", "data", ["weight"], True, [], None),
+        ("no_axes", "volume", ["weight"], True, [], None),
+        ("no_signal_or_data", None, ["weight"], True, [], KeyError),
+        ("other_signal", "other", ["weight"], True, [], KeyError)
 
     ])
     def test_get_default_signals_and_axes(
@@ -386,7 +386,7 @@ class TestMSMAggregator(unittest.TestCase):
                 data_group = f[aggregator.nxdata_path_name]
                 aggregator._get_default_signals_and_axes(data_group)
 
-            self.assertEqual(aggregator.non_weight_aux_signal_names, None)
+            self.assertEqual(aggregator.non_weight_aux_signal_names, [])
             self.assertEqual(aggregator.aux_signal_names, ["weight"])
             self.assertEqual(aggregator.renormalisation, True)
             self.assertEqual(aggregator.signal_name, "volume")
@@ -474,9 +474,9 @@ class TestMSMAggregator(unittest.TestCase):
                 np.testing.assert_allclose(aggregator.axes_spacing, [0.2, 0.2, 0.2], rtol=1e-14)
 
     @parameterized.expand([
-        ("renormalised_no_aux", True, ["weight"], None),
+        ("renormalised_no_aux", True, ["weight"], []),
         ("renormalised_aux", True, ["weight", "aux_signal_0", "aux_signal_1"], ["aux_signal_0", "aux_signal_1"]),
-        ("no_weight_no_aux", False, None, None),
+        ("no_weight_no_aux", False, None, []),
         ("no_weight_aux", False, ["aux_signal_0", "aux_signal_1"], ["aux_signal_0", "aux_signal_1"])
     ])
     def test_accumulate_volumes(self, name, renormalisation, aux_signal_names, non_weight_aux_signal_names) -> None:
@@ -494,8 +494,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.accumulator_volume = np.zeros((3, 3, 5))
         if renormalisation:
             aggregator.accumulator_weights = np.zeros((3, 3, 5))
-        if non_weight_aux_signal_names:
-            aggregator.accumulator_aux_signals = [np.zeros((3, 3, 5)), np.zeros((3, 3, 5))]
+        aggregator.accumulator_aux_signals = [np.zeros((3, 3, 5))] * len(non_weight_aux_signal_names)
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             file_path_0 = Path(working_directory) / "output0.nxs"
             file_path_1 = Path(working_directory) / "output1.nxs"
@@ -530,12 +529,45 @@ class TestMSMAggregator(unittest.TestCase):
                         nxdata_group.create_dataset(name, data=signal)
 
             aggregator._accumulate_volumes()
-            self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
             if renormalisation:
                 self.assertEqual(aggregator.accumulator_weights.shape, (3, 3, 5))
-            if non_weight_aux_signal_names:
-                for volume in aggregator.accumulator_aux_signals:
-                                self.assertEqual(volume.shape, (3, 3, 5))
+                volume = [
+                    0., 1., 2., 3., 4., 4.56, 5.55172414, 6.54545455, 7.54054054, 9., 8., 9., 10., 11., 0., 11.05882353,
+                    12.05454545, 13.05084746, 14.04761905, 14., 15.50724638, 16.50684932, 17.50649351, 18.50617284, 19.,
+                    20., 21., 22., 23., 0., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 0., 0., 0., 0., 0.
+                ]
+                weight = [
+                    7., 11., 15., 19., 12., 25., 29., 33., 37., 22., 19., 21., 23., 25., 0., 51., 55., 59., 63., 32.,
+                    69., 73., 77., 81., 42., 43., 45., 47., 49., 0., 44., 46., 48., 50., 52., 54., 56., 58., 60., 62.,
+                    0., 0., 0., 0., 0.
+                ]
+                np.testing.assert_allclose(aggregator.accumulator_weights, np.array(weight).reshape(3, 3, 5), rtol=1e-9)
+            else:
+                volume = [
+                    0., 2., 4., 6., 4., 9., 11., 13., 15., 9., 8., 9., 10., 11., 0., 22., 24., 26., 28., 14., 31., 33.,
+                    35., 37., 19., 20., 21., 22., 23., 0., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 0., 0., 0.,
+                    0., 0.
+                ]
+                self.assertFalse(hasattr(aggregator, "accumulator_weights"))
+
+            self.assertEqual(aggregator.accumulator_volume.shape, (3, 3, 5))
+            np.testing.assert_allclose(aggregator.accumulator_volume, np.array(volume).reshape(3, 3, 5), rtol=1e-9)
+            for aux_signal in aggregator.accumulator_aux_signals:
+                self.assertEqual(aux_signal.shape, (3, 3, 5))
+                if renormalisation:
+                    signal = [
+                        53., 163., 329., 551., 444., 1015., 1381., 1803., 2281., 1694., 1121., 1365., 1633., 1925., 0.,
+                        4281., 4999., 5773., 6603., 3744., 7995., 8969., 9999., 11085., 6594., 5633., 6165., 6721.,
+                        7301., 0., 7260., 7958., 8688., 9450., 10244., 11070., 11928., 12818., 13740., 14694., 0., 0.,
+                        0., 0., 0.
+                        ]
+                else:
+                    signal = [
+                        16., 30., 44., 58., 37., 80., 94., 108., 122., 77., 59., 65., 71., 77., 0., 168., 182., 196.,
+                        210., 117., 232., 246., 260., 274., 157., 131., 137., 143., 149., 0., 165., 173., 181., 189.,
+                        197., 205., 213., 221., 229., 237., 0., 0., 0., 0., 0.
+                    ]
+                np.testing.assert_allclose(aux_signal, np.array(signal).reshape(3, 3, 5), rtol=1e-9)
 
     def test_accumulate_volumes_applied_data(self) -> None:
         aggregator = MSMAggregator()
@@ -548,9 +580,10 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.axes_names = ["h-axis", "k-axis", "l-axis"]
         aggregator.renormalisation = True
         aggregator.data_dimensions = 3
-        aggregator.non_weight_aux_signal_names = None
+        aggregator.non_weight_aux_signal_names = []
         aggregator.accumulator_weights = np.zeros([83, 77, 13])
         aggregator.accumulator_volume = np.zeros([83, 77, 13])
+        aggregator.accumulator_aux_signals = []
         aggregator.axes_mins = [-0.2, -0.08, 0.86]
         aggregator.axes_spacing = [0.02, 0.02, 0.02]
         aggregator.accumulator_axis_lengths = [83, 77, 13]
