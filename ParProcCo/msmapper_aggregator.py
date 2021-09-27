@@ -27,7 +27,7 @@ class MSMAggregator(AggregatorInterface):
         self.accumulator_volume: np.ndarray
         self.accumulator_weights: np.ndarray
         self.all_axes: List[List]
-        self.all_slices: List[List[slice]]
+        self.all_slices: List[Tuple[slice, ...]]
         self.aux_signal_names: Optional[List[str]]
         self.axes_maxs: List
         self.axes_mins: List
@@ -89,7 +89,7 @@ class MSMAggregator(AggregatorInterface):
                 stop = axes_lengths[j] + start
                 slices.append(slice(start, stop))
 
-            self.all_slices.append(slices)
+            self.all_slices.append(tuple(slices))
 
         self.accumulator_axis_lengths = []
         self.accumulator_axis_ranges = []
@@ -212,13 +212,13 @@ class MSMAggregator(AggregatorInterface):
 
             if self.renormalisation:
                 volume = np.multiply(volume, weights)
-                self.accumulator_weights[tuple(slices)] += weights
+                self.accumulator_weights[slices] += weights
                 aux_signals = [np.multiply(aux_signal, weights) for aux_signal in aux_signals]
 
-            self.accumulator_volume[tuple(slices)] += volume
+            self.accumulator_volume[slices] += volume
 
             for signal, accumulator_signal in zip(aux_signals, self.accumulator_aux_signals):
-                accumulator_signal[tuple(slices)] += signal
+                accumulator_signal[slices] += signal
 
         if self.renormalisation:
             self.accumulator_volume = self.accumulator_volume / self.accumulator_weights

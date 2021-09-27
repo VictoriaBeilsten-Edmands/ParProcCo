@@ -122,8 +122,8 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(aggregator.accumulator_axis_ranges[2][-1], 1.1)
         self.assertTrue(np.array_equal(aggregator.accumulator_volume, np.zeros([83, 77, 13])))
         self.assertTrue(np.array_equal(aggregator.accumulator_weights, np.zeros([83, 77, 13])))
-        self.assertEqual(aggregator.all_slices, [[slice(0, 83), slice(0, 77), slice(0, 13)],
-                                                 [slice(0, 83), slice(0, 77), slice(0, 13)]])
+        self.assertEqual(aggregator.all_slices, [(slice(0, 83), slice(0, 77), slice(0, 13)),
+                                                 (slice(0, 83), slice(0, 77), slice(0, 13))])
 
     @parameterized.expand([
         ("normal", (2, 3, 4), True, ["weight"], [], None, None),
@@ -189,8 +189,8 @@ class TestMSMAggregator(unittest.TestCase):
 
             self.assertEqual(aggregator.axes_mins, [0.0, 1.0, -0.4])
             self.assertEqual(aggregator.axes_maxs, [0.4, 1.4, 0.4])
-            self.assertEqual(aggregator.all_slices, [[slice(0, 2), slice(0, 3), slice(0, 4)],
-                                                     [slice(0, 3), slice(1, 3), slice(0, 5)]])
+            self.assertEqual(aggregator.all_slices, [(slice(0, 2), slice(0, 3), slice(0, 4)),
+                                                     (slice(0, 3), slice(1, 3), slice(0, 5))])
             self.assertEqual(aggregator.accumulator_axis_lengths, [3, 3, 5])
             for l, e in zip(aggregator.accumulator_axis_ranges,
                             [[0.0, 0.2, 0.4], [1.0, 1.2, 1.4], [-0.4, -0.2, 0.0, 0.2, 0.4]]):
@@ -489,8 +489,8 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.data_dimensions = 3
         aggregator.aux_signal_names = aux_signal_names
         aggregator.non_weight_aux_signal_names = non_weight_aux_signal_names
-        aggregator.all_slices = [[slice(0, 2, None), slice(0, 3, None), slice(0, 4, None)],
-                                 [slice(0, 3, None), slice(0, 2, None), slice(0, 5, None)]]
+        aggregator.all_slices = [(slice(0, 2, None), slice(0, 3, None), slice(0, 4, None)),
+                                 (slice(0, 3, None), slice(0, 2, None), slice(0, 5, None))]
         aggregator.accumulator_volume = np.zeros((3, 3, 5))
         if renormalisation:
             aggregator.accumulator_weights = np.zeros((3, 3, 5))
@@ -594,7 +594,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.accumulator_axis_ranges = [[x * aggregator.axes_spacing[i] + aggregator.axes_mins[i]
                                                for x in range(aggregator.accumulator_axis_lengths[i])]
                                               for i in range(3)]
-        aggregator.all_slices = [[slice(0, 83), slice(0, 77), slice(0, 13)], [slice(0, 83), slice(0, 77), slice(0, 13)]]
+        aggregator.all_slices = [(slice(0, 83), slice(0, 77), slice(0, 13)), (slice(0, 83), slice(0, 77), slice(0, 13))]
         aggregator._accumulate_volumes()
 
         with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
