@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 from job_scheduler import JobScheduler
 
@@ -23,24 +24,33 @@ class AggregatorInterface:
 
 class JobController:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16,
+    def __init__(self, cluster_output_dir_name: str, project: str, queue: str, cpus: int = 16,
                  timeout: timedelta = timedelta(hours=2)):
         """JobController is used to coordinate cluster job submissions with JobScheduler"""
 
+        self.working_directory: Path = self.check_location(os.getcwd())
+
         self.cpus = cpus
-        self.cluster_output_dir = Path(cluster_output_dir)
+        self.cluster_output_dir: Path = self.working_directory / cluster_output_dir_name
         self.data_aggregator: AggregatorInterface
         self.data_slicer: SlicerInterface
         self.project = project
         self.queue = queue
         self.scheduler: JobScheduler = None
         self.timeout = timeout
-        self.working_directory = Path(working_directory)
+
+    def check_location(self, location: Union[Path, str]) -> Path:
+        location_path = Path(location)
+        if Path("/dls") in location_path.parents or Path("/home") in location_path.parents:
+            return location_path
+        raise ValueError(f"{location_path} must be located within /dls or /home")
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
             number_jobs: int, processing_script: Path) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
+        processing_script = self.check_location(os.path.abspath(processing_script))
+        input_path = self.check_location(os.path.abspath(input_path))
         slice_params = self.data_slicer.slice(input_path, number_jobs)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,

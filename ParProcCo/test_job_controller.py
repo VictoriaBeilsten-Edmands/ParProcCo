@@ -88,9 +88,14 @@ class TestJobController(unittest.TestCase):
         if not Path(self.base_dir).is_dir():
             logging.debug(f"Making directory {self.base_dir}")
             Path(self.base_dir).mkdir(exist_ok=True)
+        self.current_dir = os.getcwd()
+
+    def tearDown(self):
+        os.chdir(self.current_dir)
 
     def test_all_jobs_fail(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            os.chdir(working_directory)
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
@@ -99,21 +104,23 @@ class TestJobController(unittest.TestCase):
 
             input_file_path = setup_data_file(working_directory)
 
-            jc = JobController(working_directory, cluster_output_dir, project="b24", queue="medium.q",
+            jc = JobController(cluster_output_dir, project="b24", queue="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
                 jc.run(SimpleDataSlicer(), SimpleDataAggregator(), input_file_path, 4, jobscript)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
     def test_end_to_end(self) -> None:
+        current_dir = os.getcwd()
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+            os.chdir(working_directory)
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
 
             input_file_path = setup_data_file(working_directory)
 
-            jc = JobController(working_directory, cluster_output_dir, project="b24", queue="medium.q")
+            jc = JobController(cluster_output_dir, project="b24", queue="medium.q")
             agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(), input_file_path, 4, jobscript)
 
             self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
