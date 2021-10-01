@@ -26,7 +26,7 @@ class StatusInfo:
 
 class JobScheduler:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16,
+    def __init__(self, working_directory: Union[Path, str], cluster_output_dir: Union[Path, str], project: str, queue: str, cpus: int = 16,
                  timeout: timedelta = timedelta(hours=2)):
         """JobScheduler can be used for cluster job submissions"""
         self.batch_number = 0
@@ -131,10 +131,17 @@ class JobScheduler:
         else:
             logging.debug(f"Directory {self.cluster_output_dir} already exists")
 
+        error_dir = self.cluster_output_dir / "error_logs"
+        if not error_dir.exists():
+            logging.debug(f"Making directory {error_dir}")
+            error_dir.mkdir(exist_ok=True, parents=True)
+        else:
+            logging.debug(f"Directory {error_dir} already exists")
+
         output_file = f"out_{input_path.stem}_{i}.txt"
         err_file = f"err_{input_path.stem}_{i}.txt"
         output_fp = str(self.cluster_output_dir / output_file)
-        err_fp = str(self.cluster_output_dir / err_file)
+        err_fp = str(error_dir / err_file)
         self.output_paths.append(Path(output_fp))
         slice_param_str = f"{slice_param.start}:{slice_param.stop}:{slice_param.step}"
         args = "--input_path", str(input_path), "--output_path", str(output_fp), "-I", slice_param_str
@@ -142,7 +149,7 @@ class JobScheduler:
         jt = JobTemplate({
             "job_name": job_name,
             "job_category": self.project,
-            "remote_command": str(self.working_directory / jobscript),
+            "remote_command": str(jobscript),
             "min_slots": self.cpus,
             "args": args,
             "working_directory": str(self.working_directory),
