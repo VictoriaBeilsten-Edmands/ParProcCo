@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 
 from job_controller import JobController
-from simple_data_slicer import SimpleDataSlicer
+from msm_data_slicer import MSMDataSlicer
 from msmapper_aggregator import MSMAggregator
 
 
@@ -29,7 +29,7 @@ def run_msm(args) -> None:
     jc = JobController(args.output_dir, args.project, args.queue)
     args.number_jobs = int(args.number_jobs)
     args.file = Path(args.file)
-    agg_data_path = jc.run(SimpleDataSlicer(), MSMAggregator(), args.file, args.number_jobs, "rs_map")
+    agg_data_path = jc.run(MSMDataSlicer(), MSMAggregator(), args.file, args.number_jobs, "rs_map_prefix.py")
     print("complete")
 
 
