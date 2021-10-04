@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import List, Tuple
 
 import drmaa2 as drmaa2
-from job_scheduler import JobScheduler
+from job_scheduler import JobScheduler, slice_to_string
 
 
 def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str],
@@ -138,7 +138,7 @@ class TestJobScheduler(unittest.TestCase):
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
             js.job_history[js.batch_number] = {}
-            js.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
+            js.job_completion_status = {slice_to_string(s): False for s in slices}
             js.check_jobscript(jobscript)
             js.status_infos = []
 

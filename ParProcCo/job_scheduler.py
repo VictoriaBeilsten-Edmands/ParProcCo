@@ -12,6 +12,21 @@ import drmaa2 as drmaa2
 from drmaa2 import Drmaa2Exception, JobSession, JobTemplate
 
 
+def slice_to_string(s: slice) -> str:
+    start = s.start
+    stop = '' if s.stop is None else s.stop
+    step = s.step
+    return f"{start}:{stop}:{step}"
+
+
+def string_to_slice(s: str) -> slice:
+    start_str, stop_str, step_str = s.split(':')
+    start = 0 if start_str == '' else int(start_str)
+    stop = None if stop_str == '' else stop_str
+    step = int(step_str)
+    return slice(start, stop, step)
+
+
 @dataclass
 class StatusInfo:
     '''Class for keeping track of job status.'''
@@ -94,7 +109,7 @@ class JobScheduler:
 
     def run(self, jobscript: Path, input_path: Path, slice_params: List[slice]) -> bool:
         self.job_history[self.batch_number] = {}
-        self.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slice_params}
+        self.job_completion_status = {slice_to_string(s): False for s in slice_params}
         self._run_and_monitor(jobscript, input_path, slice_params)
         return self.get_success()
 
@@ -143,7 +158,7 @@ class JobScheduler:
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(error_dir / err_file)
         self.output_paths.append(Path(output_fp))
-        slice_param_str = f"{slice_param.start}:{slice_param.stop}:{slice_param.step}"
+        slice_param_str = slice_to_string(slice_param)
         args = "--input_path", str(input_path), "--output_path", str(output_fp), "-I", slice_param_str
 
         jt = JobTemplate({
@@ -227,7 +242,7 @@ class JobScheduler:
                 )
 
             elif status_info.state == drmaa2.JobState.DONE:
-                self.job_completion_status[f"{status_info.slice_param.start}:{status_info.slice_param.stop}:{status_info.slice_param.step}"] = True
+                self.job_completion_status[slice_to_string(status_info.slice_param)] = True
                 status_info.final_state = "SUCCESS"
                 logging.info(
                     f"Job {status_info.job.id} processing file {status_info.input_path} with slice parameters {status_info.slice_param} completed"
@@ -242,10 +257,10 @@ class JobScheduler:
 
             self.job_history[self.batch_number][status_info.job.id] = status_info
 
-    def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_params: List[List[str]]) -> None:
+    def resubmit_jobs(self, jobscript: Path, input_path: Path, slice_param_strs: List[List[str]]) -> None:
         # failed_jobs list is list of lists [JobInfo, input_path, output_path]
         self.batch_number += 1
-        slices = [slice(*[int(x) for x in ("".join(slice_param)).split(":")]) for slice_param in slice_params]
+        slices = [string_to_slice(slice_param_str) for slice_param_str in slice_param_strs]
         self.run(jobscript, input_path, slices)
 
     def filter_killed_jobs(self, jobs: List[drmaa2.Job]) -> List[drmaa2.Job]:
