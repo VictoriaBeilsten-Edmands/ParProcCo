@@ -8,6 +8,23 @@ from typing import List, Union
 from job_scheduler import JobScheduler
 
 
+def check_location(location: Union[Path, str]) -> Path:
+    location_path = Path(location)
+    if Path("/dls") in location_path.parents or Path("/home") in location_path.parents or Path("/dls_sw") in location_path.parents:
+        return location_path
+    raise ValueError(f"{location_path} must be located within /dls or /home")
+
+
+def get_absolute_path(filename: Union[Path, str]) -> str:
+    python_path = os.environ['PYTHONPATH'].split(os.pathsep)
+    for search_path in python_path:
+        for root, dir, files in os.walk(search_path):
+            if filename in files:
+                return os.path.join(root, filename)
+
+    return os.path.abspath(filename)
+
+
 class SlicerInterface:
 
     def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List[slice]:
@@ -28,7 +45,7 @@ class JobController:
                  timeout: timedelta = timedelta(hours=2)):
         """JobController is used to coordinate cluster job submissions with JobScheduler"""
 
-        self.working_directory: Path = self.check_location(os.getcwd())
+        self.working_directory: Path = check_location(os.getcwd())
 
         self.cpus = cpus
         self.cluster_output_dir: Path = self.working_directory / cluster_output_dir_name
@@ -39,18 +56,12 @@ class JobController:
         self.scheduler: JobScheduler = None
         self.timeout = timeout
 
-    def check_location(self, location: Union[Path, str]) -> Path:
-        location_path = Path(location)
-        if Path("/dls") in location_path.parents or Path("/home") in location_path.parents:
-            return location_path
-        raise ValueError(f"{location_path} must be located within /dls or /home")
-
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
             number_jobs: int, processing_script: Path) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
-        processing_script = self.check_location(os.path.abspath(processing_script))
-        input_path = self.check_location(os.path.abspath(input_path))
+        processing_script = check_location(get_absolute_path(processing_script))
+        input_path = check_location(os.path.abspath(input_path))
         slice_params = self.data_slicer.slice(input_path, number_jobs)
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
