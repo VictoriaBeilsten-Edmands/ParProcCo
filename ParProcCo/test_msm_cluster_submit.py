@@ -34,7 +34,7 @@ class TestClusterSubmit(unittest.TestCase):
             runner_script_path = str(current_script_dir / "msm_cluster_submit.py")
             cluster_output_name = "cluster_output"
 
-            input_file_path = "/scratch/victoria/i07-394487-applied-whole.nxs"
+            input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied-whole.nxs"
 
             args = ["python", runner_script_path, "-o", cluster_output_name, "-p", "b24", "-q", "medium.q", "-n", "4",
                     "-f", input_file_path]
