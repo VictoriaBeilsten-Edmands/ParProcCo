@@ -153,8 +153,8 @@ class JobScheduler:
         else:
             logging.debug(f"Directory {error_dir} already exists")
 
-        output_file = f"out_{input_path.stem}_{i}.txt"
-        err_file = f"err_{input_path.stem}_{i}.txt"
+        output_file = f"out_{input_path.stem}_{i}{input_path.suffix}"
+        err_file = f"err_{input_path.stem}_{i}{input_path.suffix}"
         output_fp = str(self.cluster_output_dir / output_file)
         err_fp = str(error_dir / err_file)
         self.output_paths.append(Path(output_fp))
