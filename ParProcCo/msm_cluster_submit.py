@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import List
 
 from job_controller import JobController
 from msm_data_slicer import MSMDataSlicer
 from msmapper_aggregator import MSMAggregator
+from argparse import ArgumentParser, Namespace
 
 
 def create_parser():
@@ -22,7 +25,7 @@ def create_parser():
     return parser
 
 
-def run_msm(args) -> None:
+def run_msm(args: Namespace) -> None:
     '''
     Run JobController
     '''
