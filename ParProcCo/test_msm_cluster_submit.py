@@ -5,7 +5,6 @@ import logging
 import os.path
 import subprocess
 import unittest
-from parameterized import parameterized
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -34,16 +33,16 @@ class TestClusterSubmit(unittest.TestCase):
             runner_script_path = str(current_script_dir / "msm_cluster_submit.py")
             cluster_output_name = "cluster_output"
 
-            input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied-whole.nxs"
+            input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied.nxs"
 
-            args = ["python", runner_script_path, "-o", cluster_output_name, "-p", "b24", "-q", "medium.q", "-n", "4",
-                    "-f", input_file_path]
+            args = ["python", runner_script_path, "-o", cluster_output_name, "--jobs", "4", "-f", input_file_path,
+                    "rs_map", "--cores", "6", "--memory", "4G", "-s", "0.01"]
 
             proc = subprocess.Popen(args)
             proc.communicate()
             cluster_output_dir = Path(working_directory) / cluster_output_name
             self.assertTrue(cluster_output_dir.is_dir())
-            output_files = [cluster_output_dir / f"out_i07-394487-applied-whole_{i}.nxs" for i in range(4)]
+            output_files = [cluster_output_dir / f"out_i07-394487-applied_{i}.nxs" for i in range(4)]
 
             for output_file in output_files:
                 self.assertTrue(output_file.is_file())

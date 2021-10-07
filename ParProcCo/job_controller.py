@@ -12,7 +12,7 @@ def check_location(location: Union[Path, str]) -> Path:
     location_path = Path(location)
     if Path("/dls") in location_path.parents or Path("/home") in location_path.parents or Path("/dls_sw") in location_path.parents:
         return location_path
-    raise ValueError(f"{location_path} must be located within /dls or /home")
+    raise ValueError(f"{location_path} must be located within /dls, 'dls_sw or /home")
 
 
 def get_absolute_path(filename: Union[Path, str]) -> str:
@@ -57,16 +57,18 @@ class JobController:
         self.timeout = timeout
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
-            number_jobs: int, processing_script: Path) -> Path:
+            number_jobs: int, processing_script: Path, other_args: List = None) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
         processing_script = check_location(get_absolute_path(processing_script))
         input_path = check_location(os.path.abspath(input_path))
         slice_params = self.data_slicer.slice(input_path, number_jobs)
+        if other_args is None:
+            other_args = []
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, input_path, slice_params)
+        success = self.scheduler.run(processing_script, input_path, slice_params, other_args)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)
