@@ -30,14 +30,13 @@ class TestClusterSubmit(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             os.chdir(working_directory)
             current_script_dir = Path(os.path.realpath(__file__)).parent
-            runner_script_path = str(current_script_dir / "msm_cluster_submit.py")
+            runner_script_path = str(current_script_dir / "msm_cluster_submit")
             cluster_output_name = "cluster_output"
 
             input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied.nxs"
 
-            args = ["python", runner_script_path, "-o", cluster_output_name, "--jobs", "4", "-f", input_file_path,
-                    "rs_map", "--cores", "6", "--memory", "4G", "-s", "0.01"]
-
+            args = [runner_script_path, "rs_map", "--jobs", "4", "-s", "0.01", "-o", cluster_output_name,
+                    "--cores", "6", "--memory", "4G", input_file_path]
             proc = subprocess.Popen(args)
             proc.communicate()
             cluster_output_dir = Path(working_directory) / cluster_output_name

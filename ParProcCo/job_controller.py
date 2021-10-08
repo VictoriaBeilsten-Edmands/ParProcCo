@@ -27,7 +27,7 @@ def get_absolute_path(filename: Union[Path, str]) -> str:
 
 class SlicerInterface:
 
-    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List[slice]:
+    def slice(self, number_jobs: int, stop: int = None) -> List[slice]:
         """Takes an input data file and returns a list of slice parameters."""
         raise NotImplementedError
 
@@ -56,19 +56,18 @@ class JobController:
         self.scheduler: JobScheduler = None
         self.timeout = timeout
 
-    def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
-            number_jobs: int, processing_script: Path, other_args: List = None) -> Path:
+    def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, number_jobs: int,
+            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: List = None) -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
         processing_script = check_location(get_absolute_path(processing_script))
-        input_path = check_location(os.path.abspath(input_path))
-        slice_params = self.data_slicer.slice(input_path, number_jobs)
-        if other_args is None:
-            other_args = []
+        slice_params = self.data_slicer.slice(number_jobs)
+        if jobscript_args is None:
+            jobscript_args = []
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, input_path, slice_params, other_args)
+        success = self.scheduler.run(processing_script, slice_params, memory, cores, jobscript_args)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)

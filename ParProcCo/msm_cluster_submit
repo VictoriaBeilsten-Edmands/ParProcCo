@@ -19,22 +19,24 @@ def create_parser():
     parser = argparse.ArgumentParser(description='Miller Space Mapper run script for use with ParProcCo')
     parser.add_argument('-o', '--output-dir', help='str: cluster output directory', required=True)
     parser.add_argument('-j', '--jobs', help='int: number of cluster jobs to split processing into', required=True)
-    parser.add_argument('-f', '--file', help='str: input data file', required=True)
+    parser.add_argument('-m', '--memory', help='str: memory to use per cluster job', required=True)
+    parser.add_argument('-c', '--cores', help='int: number of cores to use per cluster job', required=True)
     return parser
 
 
-def run_msm(args: argparse.Namespace, other_args: List) -> None:
+def run_msm(args: argparse.Namespace, script_args: List) -> None:
     '''
     Run JobController
     '''
     jc = JobController(args.output_dir, "b24", "medium.q")
     args.jobs = int(args.jobs)
-    args.file = Path(args.file)
-    agg_data_path = jc.run(MSMDataSlicer(), MSMAggregator(), args.file, args.jobs, "msm_cluster_runner", other_args)
+    args.cores = int(args.cores)
+    agg_data_path = jc.run(MSMDataSlicer(), MSMAggregator(), args.jobs, "msm_cluster_runner", args.memory, args.cores,
+                           script_args)
     print("complete")
 
 
 if __name__ == '__main__':
-    args, other_args = create_parser().parse_known_args()
+    args, script_args = create_parser().parse_known_args()
     print(f"Parsing {args}")
-    run_msm(args, other_args)
+    run_msm(args, script_args)

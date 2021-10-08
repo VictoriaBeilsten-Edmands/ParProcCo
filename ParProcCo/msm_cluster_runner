@@ -29,19 +29,18 @@ def get_absolute_path(filename: Union[Path, str]) -> str:
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Miller Space Mapper run script for use with ParProcCo')
-    parser.add_argument('--input_path', help='str: input data file', required=True)
     parser.add_argument('--output_path', help='str: output file path', required=True)
     parser.add_argument('-I', help='str: image slice parameter', required=True)
     return parser
 
 
-def run_rs_map(args, unknown_args):
+def run_rs_map(args, script_args):
     print("args are: ", args)
-    print("unknown_args are: ", unknown_args)
-    script = check_location(get_absolute_path(unknown_args[0]))
-    jobscript = unknown_args[0]
+    print("script_args are: ", script_args)
+    script = check_location(get_absolute_path(script_args[0]))
+    jobscript = script_args[0]
 
-    script_args = [jobscript, "-o", args.output_path, "-I", args.I] + unknown_args[1:] + [args.input_path]
+    script_args = [jobscript, "-o", args.output_path, "-I", args.I] + script_args[1:]
     print("script_args are: ", script_args)
     print("script is: ", script)
 
@@ -51,6 +50,6 @@ def run_rs_map(args, unknown_args):
 
 
 if __name__ == '__main__':
-    args, unknown_args = create_parser().parse_known_args()
+    args, script_args = create_parser().parse_known_args()
     print(f"Parsing {args}")
-    run_rs_map(args, unknown_args)
+    run_rs_map(args, script_args)
