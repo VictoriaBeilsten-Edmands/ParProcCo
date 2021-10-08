@@ -41,12 +41,11 @@ class StatusInfo:
 
 class JobScheduler:
 
-    def __init__(self, working_directory: Union[Path, str], cluster_output_dir: Union[Path, str], project: str, queue: str, cpus: int = 16,
-                 timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, working_directory: Union[Path, str], cluster_output_dir: Union[Path, str], project: str,
+                 queue: str, timeout: timedelta = timedelta(hours=2)):
         """JobScheduler can be used for cluster job submissions"""
         self.batch_number = 0
         self.cluster_output_dir = Path(cluster_output_dir)
-        self.cpus = cpus
         self.job_completion_status: Dict[str, bool] = {}
         self.job_history: Dict[int, Dict[int, StatusInfo]] = {}
         self.output_paths: List[Path] = []
@@ -108,30 +107,30 @@ class JobScheduler:
         return False
 
     def run(self, jobscript: Path, slice_params: List[slice], memory: str = "4G", cores: int = 6,
-            jobscript_args: List = None) -> bool:
+            jobscript_args: List = None, job_name: str = "ParProcCo_job") -> bool:
         if jobscript_args is None:
             jobscript_args = []
         self.job_history[self.batch_number] = {}
         self.job_completion_status = {slice_to_string(s): False for s in slice_params}
-        self._run_and_monitor(jobscript, slice_params, memory, cores, jobscript_args)
+        self._run_and_monitor(jobscript, slice_params, memory, cores, jobscript_args, job_name)
         return self.get_success()
 
     def _run_and_monitor(self, jobscript: Path, slice_params: List[slice], memory: str, cores: int,
-                         jobscript_args: List) -> None:
+                         jobscript_args: List, job_name: str) -> None:
         jobscript = self.check_jobscript(jobscript)
         session = JobSession()  # Automatically destroyed when it is out of scope
-        self._run_jobs(session, jobscript, slice_params, memory, cores, jobscript_args)
+        self._run_jobs(session, jobscript, slice_params, memory, cores, jobscript_args, job_name)
         self._wait_for_jobs(session)
         self._report_job_info()
 
     def _run_jobs(self, session: JobSession, jobscript: Path, slice_params: List[slice], memory: str, cores: int,
-                  jobscript_args: List) -> None:
+                  jobscript_args: List, job_name: str) -> None:
         logging.debug(f"Running jobs on cluster for jobscript {jobscript} and args {jobscript_args}")
         try:
             # Run all input paths in parallel:
             self.status_infos = []
             for i, slice_param in enumerate(slice_params):
-                template = self._create_template(jobscript, slice_param, i, memory, cores, jobscript_args)
+                template = self._create_template(jobscript, slice_param, i, memory, cores, jobscript_args, job_name)
                 logging.debug(f"Submitting drmaa job with jobscript {jobscript} and args {slice_param}, {jobscript_args}")
                 job = session.run_job(template)
                 self.status_infos.append(StatusInfo(job, slice_param, Path(template.output_path), jobscript_args))
@@ -144,7 +143,7 @@ class JobScheduler:
             raise
 
     def _create_template(self, jobscript: Path, slice_param: slice, i: int, memory: str, cores: int,
-                         jobscript_args: List) -> JobTemplate:
+                         jobscript_args: List, job_name: str) -> JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
@@ -167,11 +166,15 @@ class JobScheduler:
         args = tuple([jobscript_args[0], "--output_path", str(output_fp), "-I", slice_param_str] + jobscript_args[1:])
 
         jt = JobTemplate({
-            "job_name": "job_scheduler_testing",
+            "job_name": job_name,
             "job_category": self.project,
             "remote_command": str(jobscript),
-            "min_slots": self.cpus,
+            "min_slots": cores,
             "args": args,
+            "resource_limits": {
+                "cpu_model": "intel-xeon",
+                "m_mem_free": memory,
+            },
             "working_directory": str(self.working_directory),
             "output_path": output_fp,
             "error_path": err_fp,

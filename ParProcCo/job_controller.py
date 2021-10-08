@@ -41,13 +41,11 @@ class AggregatorInterface:
 
 class JobController:
 
-    def __init__(self, cluster_output_dir_name: str, project: str, queue: str, cpus: int = 16,
-                 timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, cluster_output_dir_name: str, project: str, queue: str, timeout: timedelta = timedelta(hours=2)):
         """JobController is used to coordinate cluster job submissions with JobScheduler"""
 
         self.working_directory: Path = check_location(os.getcwd())
 
-        self.cpus = cpus
         self.cluster_output_dir: Path = self.working_directory / cluster_output_dir_name
         self.data_aggregator: AggregatorInterface
         self.data_slicer: SlicerInterface
@@ -57,7 +55,8 @@ class JobController:
         self.timeout = timeout
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, number_jobs: int,
-            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: List = None) -> Path:
+            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: List = None,
+            job_name: str = "ParProcCo") -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
         processing_script = check_location(get_absolute_path(processing_script))
@@ -66,8 +65,8 @@ class JobController:
             jobscript_args = []
 
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
-                                      self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, slice_params, memory, cores, jobscript_args)
+                                      self.timeout)
+        success = self.scheduler.run(processing_script, slice_params, memory, cores, jobscript_args, job_name)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)

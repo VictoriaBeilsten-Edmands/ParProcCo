@@ -103,7 +103,7 @@ class TestJobScheduler(unittest.TestCase):
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", queue="medium.q")
             runner_script_args = ["--input_path", str(input_path)]
             js._create_template(Path("some_script.py"), slice(0, 1, 2), 1, memory="4G", cores=6,
-                                jobscript_args=runner_script_args)
+                                jobscript_args=runner_script_args, job_name="create_template_test")
             cluster_output_dir_exists = os.path.exists(cluster_output_dir)
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
@@ -147,7 +147,8 @@ class TestJobScheduler(unittest.TestCase):
             js.status_infos = []
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js._run_jobs(session, jobscript, slices, memory="4G", cores=6, jobscript_args=runner_script_args)
+            js._run_jobs(session, jobscript, slices, memory="4G", cores=6, jobscript_args=runner_script_args,
+                         job_name="old_output_test")
             js._wait_for_jobs(session)
             js.start_time = datetime.now()
             js._report_job_info()
