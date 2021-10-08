@@ -22,66 +22,6 @@ def setup_data_file(working_directory: str) -> Path:
     return input_file_path
 
 
-def setup_runner_script(working_directory: str) -> Path:
-    runner_script = Path(working_directory) / "runner_script.py"
-    with open(runner_script, "x") as f:
-        runner_script_lines = """
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-import argparse
-import os
-import subprocess
-from pathlib import Path
-
-
-def check_location(location):
-    location_path = Path(location)
-    if Path("/dls") in location_path.parents or Path("/home") in location_path.parents or Path("/dls_sw") in location_path.parents:
-        return location_path
-    raise ValueError(f"{location_path} must be located within /dls, /dls_sw or /home")
-
-
-def get_absolute_path(filename):
-    python_path = os.environ['PYTHONPATH'].split(os.pathsep)
-    for search_path in python_path:
-        for root, dir, files in os.walk(search_path):
-            if filename in files:
-                return os.path.join(root, filename)
-
-    return os.path.abspath(filename)
-
-
-def create_parser():
-    parser = argparse.ArgumentParser(description='Miller Space Mapper run script for use with ParProcCo')
-    parser.add_argument('--input-path', help='str: input file path', required=True)
-    parser.add_argument('--output-path', help='str: output file path', required=True)
-    parser.add_argument('-I', help='str: image slice parameter', required=True)
-    return parser
-
-
-def run_jobscript(args, script_args):
-    script = check_location(get_absolute_path(script_args[0]))
-    jobscript = script_args[0]
-
-    script_args = [jobscript, "--input-path", args.input_path, "--output-path", args.output_path, "-I", args.I] + script_args[1:]
-
-    proc = subprocess.Popen(script_args)
-    proc.communicate()
-    print("complete")
-
-
-if __name__ == '__main__':
-    args, script_args = create_parser().parse_known_args()
-    run_jobscript(args, script_args)
-
-"""
-        runner_script_lines = runner_script_lines.lstrip()
-        f.write(runner_script_lines)
-    os.chmod(runner_script, 0o777)
-    return runner_script
-
-
 def setup_jobscript(working_directory: str) -> Path:
     jobscript = Path(working_directory) / "test_script.py"
     with open(jobscript, "x") as f:
@@ -159,17 +99,16 @@ class TestJobController(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
-            runner_script = setup_runner_script(working_directory)
             with open(jobscript, "a+") as f:
                 f.write("import time\ntime.sleep(5)\n")
 
             input_path = setup_data_file(working_directory)
-            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
+            runner_script_args = ["--input-path", str(input_path)]
 
             jc = JobController(cluster_output_dir, project="b24", queue="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
-                jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, runner_script, jobscript_args=runner_script_args)
+                jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, jobscript, jobscript_args=runner_script_args)
             self.assertTrue(f"All jobs failed\n" in str(context.exception))
 
     def test_end_to_end(self) -> None:
@@ -178,13 +117,12 @@ class TestJobController(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
-            runner_script = setup_runner_script(working_directory)
 
             input_path = setup_data_file(working_directory)
-            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
+            runner_script_args = ["--input-path", str(input_path)]
 
             jc = JobController(cluster_output_dir, project="b24", queue="medium.q")
-            agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, runner_script,
+            agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, jobscript,
                                    jobscript_args=runner_script_args)
 
             self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
