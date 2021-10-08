@@ -61,14 +61,10 @@ def create_parser():
 
 
 def run_jobscript(args, script_args):
-    print("args are: ", args)
-    print("script_args are: ", script_args)
     script = check_location(get_absolute_path(script_args[0]))
     jobscript = script_args[0]
 
     script_args = [jobscript, "--input-path", args.input_path, "--output-path", args.output_path, "-I", args.I] + script_args[1:]
-    print("script_args are: ", script_args)
-    print("script is: ", script)
 
     proc = subprocess.Popen(script_args)
     proc.communicate()
