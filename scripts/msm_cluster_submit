@@ -1,15 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 from typing import List
 
-from job_controller import JobController
-from msm_data_slicer import MSMDataSlicer
-from msmapper_aggregator import MSMAggregator
+from ParProcCo.job_controller import JobController
+from ParProcCo.msm_data_slicer import MSMDataSlicer
+from ParProcCo.msmapper_aggregator import MSMAggregator
 
 
 def create_parser():
@@ -31,12 +32,13 @@ def run_msm(args: argparse.Namespace, script_args: List) -> None:
     jc = JobController(args.output_dir, "b24", "medium.q")
     args.jobs = int(args.jobs)
     args.cores = int(args.cores)
-    agg_data_path = jc.run(MSMDataSlicer(), MSMAggregator(), args.jobs, "msm_cluster_runner", args.memory, args.cores,
+    current_script_dir = Path(os.path.realpath(__file__)).parent
+    runner_script_path = current_script_dir / "msm_cluster_runner"
+    agg_data_path = jc.run(MSMDataSlicer(), MSMAggregator(), args.jobs, runner_script_path, args.memory, args.cores,
                            script_args)
     print("complete")
 
 
 if __name__ == '__main__':
     args, script_args = create_parser().parse_known_args()
-    print(f"Parsing {args}")
     run_msm(args, script_args)
