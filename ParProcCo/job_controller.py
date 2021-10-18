@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Union
 
+from .aggregator_interface import AggregatorInterface
 from .job_scheduler import JobScheduler
 from .slicer_interface import SlicerInterface
 
@@ -24,13 +25,6 @@ def get_absolute_path(filename: Union[Path, str]) -> str:
                 return os.path.join(root, filename)
 
     return os.path.abspath(filename)
-
-
-class AggregatorInterface:
-
-    def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
-        """Aggregates data from multiple output files into one"""
-        raise NotImplementedError
 
 
 class JobController:

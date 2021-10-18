@@ -8,7 +8,7 @@ from typing import AnyStr, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
-from .job_controller import AggregatorInterface
+from .aggregator_interface import AggregatorInterface
 
 from . import __version__
 
