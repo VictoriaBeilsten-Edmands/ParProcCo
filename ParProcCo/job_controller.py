@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Union
 
 from .job_scheduler import JobScheduler
+from .slicer_interface import SlicerInterface
 
 
 def check_location(location: Union[Path, str]) -> Path:
@@ -23,13 +24,6 @@ def get_absolute_path(filename: Union[Path, str]) -> str:
                 return os.path.join(root, filename)
 
     return os.path.abspath(filename)
-
-
-class SlicerInterface:
-
-    def slice(self, number_jobs: int, stop: int = None) -> List[slice]:
-        """Takes an input data file and returns a list of slice parameters."""
-        raise NotImplementedError
 
 
 class AggregatorInterface:

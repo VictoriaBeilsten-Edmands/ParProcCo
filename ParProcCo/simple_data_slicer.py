@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import List
 
-from .job_controller import SlicerInterface
+from .slicer_interface import SlicerInterface
 
 
 class SimpleDataSlicer(SlicerInterface):
