@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List
 
-from simple_data_aggregator import SimpleDataAggregator
+from ParProcCo.simple_data_aggregator import SimpleDataAggregator
 
 
 def setup_data_files(working_directory: Path) -> List[Path]:

@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import List, Tuple
 
 import drmaa2 as drmaa2
-from job_scheduler import JobScheduler, slice_to_string
+from ParProcCo.job_scheduler import JobScheduler, slice_to_string
 
 
 def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str],

@@ -8,8 +8,6 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from test_job_controller import setup_jobscript, setup_data_file
-
 
 class TestClusterSubmit(unittest.TestCase):
 
@@ -30,7 +28,7 @@ class TestClusterSubmit(unittest.TestCase):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             os.chdir(working_directory)
             current_script_dir = Path(os.path.realpath(__file__)).parent
-            runner_script_path = str(current_script_dir / "msm_cluster_submit")
+            runner_script_path = str(current_script_dir.parent / "scripts" / "msm_cluster_submit")
             cluster_output_name = "cluster_output"
 
             input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied.nxs"

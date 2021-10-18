@@ -8,9 +8,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import h5py
-import msmapper_aggregator
 import numpy as np
-from msmapper_aggregator import MSMAggregator
+import ParProcCo.msmapper_aggregator
+from ParProcCo.msmapper_aggregator import MSMAggregator
 from parameterized import parameterized
 
 
@@ -42,12 +42,12 @@ class TestMSMAggregator(unittest.TestCase):
 
     def test_decode_to_string_input_is_string(self):
         name = "name"
-        name = msmapper_aggregator.decode_to_string(name)
+        name = ParProcCo.msmapper_aggregator.decode_to_string(name)
         self.assertEqual(name, "name")
 
     def test_decode_to_string_input_is_bytes(self):
         name = b'name'
-        name = msmapper_aggregator.decode_to_string(name)
+        name = ParProcCo.msmapper_aggregator.decode_to_string(name)
         self.assertEqual(name, "name")
 
     def test_renormalise(self) -> None:

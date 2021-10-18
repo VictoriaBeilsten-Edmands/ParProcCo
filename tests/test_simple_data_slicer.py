@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from parameterized import parameterized
-from simple_data_slicer import SimpleDataSlicer
+from ParProcCo.simple_data_slicer import SimpleDataSlicer
 
 
 class TestDataSlicer(unittest.TestCase):

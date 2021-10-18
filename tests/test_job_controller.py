@@ -8,9 +8,9 @@ from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from job_controller import JobController
-from simple_data_aggregator import SimpleDataAggregator
-from simple_data_slicer import SimpleDataSlicer
+from ParProcCo.job_controller import JobController
+from ParProcCo.simple_data_aggregator import SimpleDataAggregator
+from ParProcCo.simple_data_slicer import SimpleDataSlicer
 
 
 def setup_data_file(working_directory: str) -> Path:
