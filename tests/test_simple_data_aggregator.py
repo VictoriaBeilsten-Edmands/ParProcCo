@@ -5,19 +5,9 @@ import logging
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List
 
+from .utils import setup_aggregator_data_files
 from ParProcCo.simple_data_aggregator import SimpleDataAggregator
-
-
-def setup_data_files(working_directory: Path) -> List[Path]:
-    # create test files
-    file_paths = [working_directory / f"file_0{i}.txt" for i in range(4)]
-    file_contents = ["0\n8\n", "2\n10\n", "4\n12\n", "6\n14\n"]
-    for file_path, content in zip(file_paths, file_contents):
-        with open(file_path, "w") as f:
-            f.write(content)
-    return file_paths
 
 
 class TestDataAggregator(unittest.TestCase):
@@ -36,7 +26,7 @@ class TestDataAggregator(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
             if not cluster_output_dir.exists():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
-            sliced_data_files = setup_data_files(cluster_output_dir)
+            sliced_data_files = setup_aggregator_data_files(cluster_output_dir)
             written_data = []
             for data_file in sliced_data_files:
                 with open(data_file, "r") as f:
