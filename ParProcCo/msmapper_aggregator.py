@@ -8,9 +8,9 @@ from typing import AnyStr, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
-from job_controller import AggregatorInterface
+from .job_controller import AggregatorInterface
 
-from ParProcCo import __version__
+from . import __version__
 
 
 def decode_to_string(any_string: AnyStr) -> str:

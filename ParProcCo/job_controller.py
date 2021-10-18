@@ -5,7 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Union
 
-from job_scheduler import JobScheduler
+from .job_scheduler import JobScheduler
 
 
 def check_location(location: Union[Path, str]) -> Path:
@@ -63,7 +63,6 @@ class JobController:
         slice_params = self.data_slicer.slice(number_jobs)
         if jobscript_args is None:
             jobscript_args = []
-
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
                                       self.timeout)
         success = self.scheduler.run(processing_script, slice_params, memory, cores, jobscript_args, job_name)

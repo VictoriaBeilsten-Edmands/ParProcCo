@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-from job_controller import SlicerInterface
+from .job_controller import SlicerInterface
 
 
 class SimpleDataSlicer(SlicerInterface):
