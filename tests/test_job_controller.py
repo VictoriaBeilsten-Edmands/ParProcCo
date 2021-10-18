@@ -96,7 +96,7 @@ class TestJobController(unittest.TestCase):
     def test_all_jobs_fail(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             os.chdir(working_directory)
-            cluster_output_dir = Path(working_directory) / "cluster_output"
+            cluster_output_name = "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
             with open(jobscript, "a+") as f:
@@ -105,7 +105,7 @@ class TestJobController(unittest.TestCase):
             input_path = setup_data_file(working_directory)
             runner_script_args = ["--input-path", str(input_path)]
 
-            jc = JobController(cluster_output_dir, project="b24", queue="medium.q",
+            jc = JobController(cluster_output_name, project="b24", queue="medium.q",
                                timeout=timedelta(seconds=1))
             with self.assertRaises(RuntimeError) as context:
                 jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, jobscript, jobscript_args=runner_script_args)
@@ -114,18 +114,18 @@ class TestJobController(unittest.TestCase):
     def test_end_to_end(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             os.chdir(working_directory)
-            cluster_output_dir = Path(working_directory) / "cluster_output"
+            cluster_output_name = "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
 
             input_path = setup_data_file(working_directory)
             runner_script_args = ["--input-path", str(input_path)]
 
-            jc = JobController(cluster_output_dir, project="b24", queue="medium.q")
+            jc = JobController(cluster_output_name, project="b24", queue="medium.q")
             agg_data_path = jc.run(SimpleDataSlicer(), SimpleDataAggregator(), 4, jobscript,
                                    jobscript_args=runner_script_args)
 
-            self.assertEqual(agg_data_path, Path(cluster_output_dir) / "aggregated_results.txt")
+            self.assertEqual(agg_data_path, Path(working_directory) / cluster_output_name / "aggregated_results.txt")
             with open(agg_data_path, "r") as af:
                 agg_data = af.readlines()
 
