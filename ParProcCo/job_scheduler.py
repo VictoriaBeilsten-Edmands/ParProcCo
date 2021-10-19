@@ -158,12 +158,14 @@ class JobScheduler:
             logging.debug(f"Directory {error_dir} already exists")
 
         output_file = f"out_{i}"
+        std_out_file = f"std_out_{i}"
         err_file = f"err_{i}"
         output_fp = str(self.cluster_output_dir / output_file)
+        std_out_fp = str(error_dir / std_out_file)
         err_fp = str(error_dir / err_file)
         self.output_paths.append(Path(output_fp))
         slice_param_str = slice_to_string(slice_param)
-        args = tuple([jobscript_args[0], "-o", str(output_fp), "-I", slice_param_str] + jobscript_args[1:])
+        args = tuple([jobscript_args[0], "--output", str(output_fp), "-I", slice_param_str] + jobscript_args[1:])
 
         jt = JobTemplate({
             "job_name": job_name,
@@ -176,7 +178,7 @@ class JobScheduler:
                 "m_mem_free": memory,
             },
             "working_directory": str(self.working_directory),
-            "output_path": output_fp,
+            "output_path": std_out_fp,
             "error_path": err_fp,
             "queue_name": self.queue,
             "implementation_specific": {
