@@ -1,0 +1,7 @@
+#/usr/bin/bash
+
+module load python/3.9
+module load msmapper/1.3
+
+echo "Executing |$@|"
+eval "$@"
