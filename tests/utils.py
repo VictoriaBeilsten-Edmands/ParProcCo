@@ -40,7 +40,7 @@ def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[
 
 
 def setup_jobscript(working_directory: str) -> Path:
-    jobscript = Path(working_directory) / "test_script.py"
+    jobscript = Path(working_directory) / "test_script"
     with open(jobscript, "x") as f:
         jobscript_lines = """
 #!/usr/bin/env python3
@@ -51,7 +51,7 @@ import argparse
 def setup_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-path", help="str: path to input file", type=str)
-    parser.add_argument("--output-path", help="str: path to output file", type=str)
+    parser.add_argument("-o", "--output", help="str: path to output file", type=str)
     parser.add_argument("-I", help="str: slice selection of images per input file (as 'start:stop:step')")
     return parser
 
@@ -64,12 +64,12 @@ def check_args(args):
 
 def write_lines(input_path, output_path, images):
     start, stop, step = images.split(":")
-    start = int(start)
-    stop = int(stop)
+    start = int(start) if start else 0
+    stop = int(stop) if stop else None
     step = int(step)
     with open(input_path, "r") as in_f:
         for i, line in enumerate(in_f):
-            if i >= stop:
+            if stop and i >= stop:
                 break
 
             elif i >= start and ((i - start) % step == 0):
@@ -81,15 +81,33 @@ def write_lines(input_path, output_path, images):
 
 if __name__ == '__main__':
     '''
-    $ python jobscript.py --input-path input_path --output-path output_path -I slice_param
+    $ jobscript --input-path input_path --output output_path -I slice_param
     '''
     parser = setup_parser()
     args = parser.parse_args()
     check_args(args)
 
-    write_lines(args.input_path, args.output_path, args.I)
+    write_lines(args.input_path, args.output, args.I)
 """
         jobscript_lines = jobscript_lines.lstrip()
         f.write(jobscript_lines)
     os.chmod(jobscript, 0o777)
     return jobscript
+
+
+def setup_runner_script(working_directory: str) -> Path:
+    runner_script = Path(working_directory) / "test_runner_script"
+    with open(runner_script, "x") as f:
+        runner_script_lines = """
+#/usr/bin/bash
+. /etc/profile.d/modules.sh
+
+module load python/3.9
+
+echo "Executing |$@|"
+eval "$@"
+"""
+        runner_script_lines = runner_script_lines.lstrip()
+        f.write(runner_script_lines)
+    os.chmod(runner_script, 0o777)
+    return runner_script

@@ -1,4 +1,5 @@
 #/usr/bin/bash
+. /etc/profile.d/modules.sh
 
 module load python/3.9
 module load msmapper/1.3

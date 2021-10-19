@@ -39,12 +39,12 @@ class TestClusterSubmit(unittest.TestCase):
             proc.communicate()
             cluster_output_dir = Path(working_directory) / cluster_output_name
             self.assertTrue(cluster_output_dir.is_dir())
-            output_files = [cluster_output_dir / f"out_i07-394487-applied_{i}.nxs" for i in range(4)]
+            output_files = [cluster_output_dir / f"out_{i}" for i in range(4)]
 
             for output_file in output_files:
                 self.assertTrue(output_file.is_file())
 
-            aggregated_file = cluster_output_dir / "aggregated_results.txt"
+            aggregated_file = cluster_output_dir / "aggregated_results.nxs"
             self.assertTrue(aggregated_file.is_file())
 
             print("job finished")
