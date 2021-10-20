@@ -5,10 +5,10 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List
 
-from .aggregator_interface import AggregatorInterface
-from .job_scheduler import JobScheduler
-from .slicer_interface import SlicerInterface
-from .utils import check_location, get_absolute_path
+from ParProcCo.aggregator_interface import AggregatorInterface
+from ParProcCo.job_scheduler import JobScheduler
+from ParProcCo.slicer_interface import SlicerInterface
+from ParProcCo.utils import check_location, get_absolute_path
 
 
 class JobController:

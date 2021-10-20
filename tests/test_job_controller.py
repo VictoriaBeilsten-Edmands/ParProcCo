@@ -8,7 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from .utils import setup_data_file, setup_runner_script, setup_jobscript
+from tests.utils import setup_data_file, setup_runner_script, setup_jobscript
 from ParProcCo.job_controller import JobController
 from ParProcCo.simple_data_aggregator import SimpleDataAggregator
 from ParProcCo.simple_data_slicer import SimpleDataSlicer

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-from .slicer_interface import SlicerInterface
+from ParProcCo.slicer_interface import SlicerInterface
 
 
 class MSMDataSlicer(SlicerInterface):

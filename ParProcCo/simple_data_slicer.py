@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from .slicer_interface import SlicerInterface
+from ParProcCo.slicer_interface import SlicerInterface
 
 
 class SimpleDataSlicer(SlicerInterface):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-from .aggregator_interface import AggregatorInterface
+from ParProcCo.aggregator_interface import AggregatorInterface
 
 
 class SimpleDataAggregator(AggregatorInterface):

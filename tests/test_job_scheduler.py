@@ -10,7 +10,7 @@ from parameterized import parameterized
 from tempfile import TemporaryDirectory
 
 import drmaa2 as drmaa2
-from .utils import setup_data_files, setup_jobscript, setup_runner_script
+from tests.utils import setup_data_files, setup_jobscript, setup_runner_script
 from ParProcCo.job_scheduler import JobScheduler, slice_to_string
 
 
