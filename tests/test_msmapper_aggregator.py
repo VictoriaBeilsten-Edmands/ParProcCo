@@ -51,12 +51,12 @@ class TestMSMAggregator(unittest.TestCase):
         self.assertEqual(name, "name")
 
     def test_renormalise(self) -> None:
-        output_file_paths = [Path("/scratch/victoria/i07-394487-applied-halfa.nxs"),
-                             Path("/scratch/victoria/i07-394487-applied-halfb.nxs")]
+        output_file_paths = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
+                             Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         aggregator = MSMAggregator()
         aggregator._check_total_slices(2, output_file_paths)
         aggregator._renormalise(output_file_paths)
-        with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
+        with h5py.File("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed/reciprocal_space/volume"])
             weights_array = np.array(f["processed/reciprocal_space/weight"])
         np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
@@ -92,8 +92,8 @@ class TestMSMAggregator(unittest.TestCase):
     def test_initialise_arrays_applied_data(self) -> None:
         aggregator = MSMAggregator()
         aggregator.data_dimensions = 3
-        aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                                        "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        aggregator.output_data_files = [Path("/dls/science/groups/das/ExampleData/i07//i07-394487-applied-halfa.nxs"),
+                                        Path("/dls/science/groups/das/ExampleData/i07//i07-394487-applied-halfb.nxs")]
         aggregator.nxentry_name = "processed"
         aggregator.nxdata_name = "reciprocal_space"
         aggregator.nxdata_path_name = "processed/reciprocal_space"
@@ -211,8 +211,8 @@ class TestMSMAggregator(unittest.TestCase):
                 self.assertEqual(aggregator.accumulator_aux_signals, [])
 
     def test_get_nxdata_applied_data(self) -> None:
-        output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        output_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
+                             Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         aggregator = MSMAggregator()
         aggregator.output_data_files = output_data_files
         aggregator._get_nxdata()
@@ -575,8 +575,8 @@ class TestMSMAggregator(unittest.TestCase):
 
     def test_accumulate_volumes_applied_data(self) -> None:
         aggregator = MSMAggregator()
-        aggregator.output_data_files = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                                        "/scratch/victoria/i07-394487-applied-halfb.nxs"]
+        aggregator.output_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
+                                        Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         aggregator.nxentry_name = "processed"
         aggregator.nxdata_name = "reciprocal_space"
         aggregator.nxdata_path_name = "processed/reciprocal_space"
@@ -597,7 +597,7 @@ class TestMSMAggregator(unittest.TestCase):
         aggregator.all_slices = [(slice(0, 83), slice(0, 77), slice(0, 13)), (slice(0, 83), slice(0, 77), slice(0, 13))]
         aggregator._accumulate_volumes()
 
-        with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
+        with h5py.File("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-whole.nxs", "r") as f:
             volumes_array = np.array(f["processed/reciprocal_space/volume"])
             weights_array = np.array(f["processed/reciprocal_space/weight"])
         self.assertEqual(aggregator.accumulator_volume.shape, (83, 77, 13))
@@ -605,9 +605,8 @@ class TestMSMAggregator(unittest.TestCase):
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
     def test_write_aggregation_file(self) -> None:
-        output_file_paths = ["/scratch/victoria/i07-394487-applied-halfa.nxs",
-                             "/scratch/victoria/i07-394487-applied-halfb.nxs"]
-        sliced_data_files = [Path(x) for x in output_file_paths]
+        sliced_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
+                             Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
             if not cluster_output_dir.exists():
@@ -615,7 +614,7 @@ class TestMSMAggregator(unittest.TestCase):
 
             aggregator = MSMAggregator()
             aggregator_filepath = aggregator.aggregate(2, cluster_output_dir, sliced_data_files)
-            with h5py.File("/scratch/victoria/i07-394487-applied-whole.nxs", "r") as f:
+            with h5py.File("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-whole.nxs", "r") as f:
                 volumes_array = np.array(f["processed/reciprocal_space/volume"])
                 weights_array = np.array(f["processed/reciprocal_space/weight"])
             np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
