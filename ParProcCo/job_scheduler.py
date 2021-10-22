@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 import drmaa2 as drmaa2
+
 from ParProcCo.utils import slice_to_string
 
 

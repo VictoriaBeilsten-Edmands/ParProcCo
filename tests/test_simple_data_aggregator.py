@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tests.utils import setup_aggregator_data_files
 from ParProcCo.simple_data_aggregator import SimpleDataAggregator
+from tests.utils import setup_aggregator_data_files
 
 
 class TestDataAggregator(unittest.TestCase):

@@ -9,9 +9,10 @@ from tempfile import TemporaryDirectory
 
 import h5py
 import numpy as np
+from parameterized import parameterized
+
 import ParProcCo.msmapper_aggregator
 from ParProcCo.msmapper_aggregator import MSMAggregator
-from parameterized import parameterized
 
 
 class TestMSMAggregator(unittest.TestCase):

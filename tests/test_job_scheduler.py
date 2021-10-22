@@ -6,13 +6,14 @@ import os
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
-from parameterized import parameterized
 from tempfile import TemporaryDirectory
 
 import drmaa2 as drmaa2
-from tests.utils import setup_data_files, setup_jobscript, setup_runner_script
+from parameterized import parameterized
+
 from ParProcCo.job_scheduler import JobScheduler
 from ParProcCo.utils import slice_to_string
+from tests.utils import setup_data_files, setup_jobscript, setup_runner_script
 
 
 class TestJobScheduler(unittest.TestCase):
