@@ -92,8 +92,8 @@ class TestMSMAggregator(unittest.TestCase):
     def test_initialise_arrays_applied_data(self) -> None:
         aggregator = MSMAggregator()
         aggregator.data_dimensions = 3
-        aggregator.output_data_files = [Path("/dls/science/groups/das/ExampleData/i07//i07-394487-applied-halfa.nxs"),
-                                        Path("/dls/science/groups/das/ExampleData/i07//i07-394487-applied-halfb.nxs")]
+        aggregator.output_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
+                                        Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         aggregator.nxentry_name = "processed"
         aggregator.nxdata_name = "reciprocal_space"
         aggregator.nxdata_path_name = "processed/reciprocal_space"

@@ -31,7 +31,7 @@ class TestClusterSubmit(unittest.TestCase):
             runner_script_path = str(current_script_dir.parent / "scripts" / "msm_cluster_submit")
             cluster_output_name = "cluster_output"
 
-            input_file_path = "/home/vaq49247/msmapper_test_work/test_dir_0/i07-394487-applied.nxs"
+            input_file_path = "/dls/science/groups/das/ExampleData/i07/i07-394487-applied.nxs"
 
             args = [runner_script_path, "rs_map", "--jobs", "4", "-s", "0.01", "-o", cluster_output_name,
                     "--cores", "6", "--memory", "4G", input_file_path]
