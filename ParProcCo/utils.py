@@ -20,3 +20,18 @@ def get_absolute_path(filename: Union[Path, str]) -> str:
                 return os.path.join(root, filename)
 
     return os.path.abspath(filename)
+
+
+def slice_to_string(s: slice) -> str:
+    start = s.start
+    stop = '' if s.stop is None else s.stop
+    step = s.step
+    return f"{start}:{stop}:{step}"
+
+
+def string_to_slice(s: str) -> slice:
+    start_str, stop_str, step_str = s.split(':')
+    start = 0 if start_str == '' else int(start_str)
+    stop = None if stop_str == '' else stop_str
+    step = int(step_str)
+    return slice(start, stop, step)
