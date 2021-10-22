@@ -23,7 +23,7 @@ class JobController:
         self.data_slicer: SlicerInterface
         self.project = project
         self.queue = queue
-        self.scheduler: JobScheduler = None
+        self.scheduler: JobScheduler
         self.timeout = timeout
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, number_jobs: int,
