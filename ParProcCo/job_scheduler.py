@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 import drmaa2 as drmaa2
-from drmaa2 import Drmaa2Exception, JobSession, JobTemplate
 
 
 def slice_to_string(s: slice) -> str:
@@ -118,12 +117,12 @@ class JobScheduler:
     def _run_and_monitor(self, jobscript: Path, slice_params: List[slice], memory: str, cores: int,
                          jobscript_args: List, job_name: str) -> None:
         jobscript = self.check_jobscript(jobscript)
-        session = JobSession()  # Automatically destroyed when it is out of scope
+        session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
         self._run_jobs(session, jobscript, slice_params, memory, cores, jobscript_args, job_name)
         self._wait_for_jobs(session)
         self._report_job_info()
 
-    def _run_jobs(self, session: JobSession, jobscript: Path, slice_params: List[slice], memory: str, cores: int,
+    def _run_jobs(self, session: drmaa2.JobSession, jobscript: Path, slice_params: List[slice], memory: str, cores: int,
                   jobscript_args: List, job_name: str) -> None:
         logging.debug(f"Running jobs on cluster for jobscript {jobscript} and args {jobscript_args}")
         try:
@@ -135,7 +134,7 @@ class JobScheduler:
                 job = session.run_job(template)
                 self.status_infos.append(StatusInfo(job, slice_param, Path(template.output_path), jobscript_args))
                 logging.debug(f"drmaa job for jobscript {jobscript} and args {slice_param}, {jobscript_args} has been submitted with id {job.id}")
-        except Drmaa2Exception:
+        except drmaa2.Drmaa2Exception:
             logging.error(f"Drmaa exception", exc_info=True)
             raise
         except Exception:
@@ -143,7 +142,7 @@ class JobScheduler:
             raise
 
     def _create_template(self, jobscript: Path, slice_param: slice, i: int, memory: str, cores: int,
-                         jobscript_args: List, job_name: str) -> JobTemplate:
+                         jobscript_args: List, job_name: str) -> drmaa2.JobTemplate:
         if not self.cluster_output_dir.exists():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
@@ -167,7 +166,7 @@ class JobScheduler:
         slice_param_str = slice_to_string(slice_param)
         args = tuple([jobscript_args[0], "--output", str(output_fp), "-I", slice_param_str] + jobscript_args[1:])
 
-        jt = JobTemplate({
+        jt = drmaa2.JobTemplate({
             "job_name": job_name,
             "job_category": self.project,
             "remote_command": str(jobscript),
@@ -187,7 +186,7 @@ class JobScheduler:
         })
         return jt
 
-    def _wait_for_jobs(self, session: JobSession) -> None:
+    def _wait_for_jobs(self, session: drmaa2.JobSession) -> None:
         try:
             job_list = [status_info.job for status_info in self.status_infos]
             # Wait for jobs to start (timeout shouldn't include queue time)
@@ -206,7 +205,7 @@ class JobScheduler:
             if jobs_running:
                 # Termination takes some time, wait a max of 2 mins
                 session.wait_all_terminated(job_list, 120)
-        except Drmaa2Exception:
+        except drmaa2.Drmaa2Exception:
             logging.error(f"Drmaa exception", exc_info=True)
         except Exception:
             logging.error(f"Unknown error occurred running drmaa job", exc_info=True)
