@@ -4,7 +4,6 @@ import getpass
 import logging
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from parameterized import parameterized
 from ParProcCo.simple_data_slicer import SimpleDataSlicer
@@ -31,20 +30,18 @@ class TestDataSlicer(unittest.TestCase):
           slice(6, 11, 11), slice(7, 11, 11), slice(8, 11, 11), slice(9, 11, 11), slice(10, 11, 11)])
     ])
     def test_slices(self, name, args, kwargs, error_msg, expected_length, expected_slices) -> None:
-        with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
+        slicer = SimpleDataSlicer()
 
-            slicer = SimpleDataSlicer()
+        if error_msg:
+            with self.assertRaises(TypeError) as context:
+                slicer.slice(*args, **kwargs)
+            self.assertTrue(error_msg in str(context.exception))
+            return
 
-            if error_msg:
-                with self.assertRaises(TypeError) as context:
-                    slicer.slice(*args, **kwargs)
-                self.assertTrue(error_msg in str(context.exception))
-                return
+        slices = slicer.slice(*args, **kwargs)
 
-            slices = slicer.slice(*args, **kwargs)
-
-            self.assertEqual(len(slices), expected_length)
-            self.assertEqual(slices, expected_slices)
+        self.assertEqual(len(slices), expected_length)
+        self.assertEqual(slices, expected_slices)
 
 
 if __name__ == '__main__':
