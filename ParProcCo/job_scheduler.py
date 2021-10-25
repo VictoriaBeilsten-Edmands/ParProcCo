@@ -6,7 +6,7 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import drmaa2 as drmaa2
 
@@ -20,9 +20,9 @@ class StatusInfo:
     slice_param: slice
     output_path: Path
     jobscript_args: List
-    info: Union[drmaa2.JobInfo, None] = None
-    state: Union[drmaa2.JobState, None] = None
-    final_state: Union[str, None] = None
+    info: Optional[drmaa2.JobInfo] = None
+    state: Optional[drmaa2.JobState] = None
+    final_state: Optional[str] = None
 
 
 class JobScheduler:
@@ -93,7 +93,7 @@ class JobScheduler:
         return False
 
     def run(self, jobscript: Path, slice_params: List[slice], memory: str = "4G", cores: int = 6,
-            jobscript_args: List = None, job_name: str = "ParProcCo_job") -> bool:
+            jobscript_args: Optional[List] = None, job_name: str = "ParProcCo_job") -> bool:
         if jobscript_args is None:
             jobscript_args = []
         self.job_history[self.batch_number] = {}

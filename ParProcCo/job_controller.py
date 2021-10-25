@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from ParProcCo.aggregator_interface import AggregatorInterface
 from ParProcCo.job_scheduler import JobScheduler
@@ -27,7 +27,7 @@ class JobController:
         self.timeout = timeout
 
     def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, number_jobs: int,
-            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: List = None,
+            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: Optional[List] = None,
             job_name: str = "ParProcCo") -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
