@@ -15,7 +15,7 @@ from ParProcCo.msmapper_aggregator import MSMAggregator
 
 def create_parser():
     '''
-     $ msm_cluster_submit rs_map --jobs --cores 6 --memory 4G -s 0.01 ... [input files]
+     $ msm_cluster_submit rs_map --jobs 4 --cores 6 --memory 4G -s 0.01 ... [input files]
      '''
     parser = argparse.ArgumentParser(description='Miller Space Mapper run script for use with ParProcCo')
     parser.add_argument('-o', '--output-dir', help='str: cluster output directory', required=True)
