@@ -151,7 +151,7 @@ class JobScheduler:
         err_fp = str(error_dir / err_file)
         self.output_paths.append(Path(output_fp))
         slice_param_str = slice_to_string(slice_param)
-        args = tuple([jobscript_args[0], "--output", str(output_fp), "-I", slice_param_str] + jobscript_args[1:])
+        args = tuple([jobscript_args[0], "--output", str(output_fp), "--images", slice_param_str] + jobscript_args[1:])
 
         jt = drmaa2.JobTemplate({
             "job_name": job_name,

@@ -33,7 +33,7 @@ class TestClusterSubmit(unittest.TestCase):
 
             input_file_path = "/dls/science/groups/das/ExampleData/i07/i07-394487-applied.nxs"
 
-            args = [runner_script_path, "rs_map", "--jobs", "4", "-s", "0.01", "-o", cluster_output_name,
+            args = [runner_script_path, "rs_map", "--jobs", "4", "-s", "0.01", "--output", cluster_output_name,
                     "--cores", "6", "--memory", "4G", input_file_path]
             proc = subprocess.Popen(args)
             proc.communicate()

@@ -51,8 +51,8 @@ import argparse
 def setup_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-path", help="str: path to input file", type=str)
-    parser.add_argument("-o", "--output", help="str: path to output file", type=str)
-    parser.add_argument("-I", help="str: slice selection of images per input file (as 'start:stop:step')")
+    parser.add_argument("--output", help="str: path to output file", type=str)
+    parser.add_argument("--images", help="str: slice selection of images per input file (as 'start:stop:step')")
     return parser
 
 
@@ -81,13 +81,13 @@ def write_lines(input_path, output_path, images):
 
 if __name__ == '__main__':
     '''
-    $ jobscript --input-path input_path --output output_path -I slice_param
+    $ jobscript --input-path input_path --output output_path --images slice_param
     '''
     parser = setup_parser()
     args = parser.parse_args()
     check_args(args)
 
-    write_lines(args.input_path, args.output, args.I)
+    write_lines(args.input_path, args.output, args.images)
 """
         jobscript_lines = jobscript_lines.lstrip()
         f.write(jobscript_lines)
