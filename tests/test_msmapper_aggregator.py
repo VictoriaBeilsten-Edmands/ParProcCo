@@ -610,7 +610,7 @@ class TestMSMAggregator(unittest.TestCase):
                              Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            if not cluster_output_dir.exists():
+            if not cluster_output_dir.is_dir():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
 
             aggregator = MSMAggregator()

@@ -130,14 +130,14 @@ class JobScheduler:
 
     def _create_template(self, jobscript: Path, slice_param: slice, i: int, memory: str, cores: int,
                          jobscript_args: List, job_name: str) -> drmaa2.JobTemplate:
-        if not self.cluster_output_dir.exists():
+        if not self.cluster_output_dir.is_dir():
             logging.debug(f"Making directory {self.cluster_output_dir}")
             self.cluster_output_dir.mkdir(exist_ok=True, parents=True)
         else:
             logging.debug(f"Directory {self.cluster_output_dir} already exists")
 
         error_dir = self.cluster_output_dir / "error_logs"
-        if not error_dir.exists():
+        if not error_dir.is_dir():
             logging.debug(f"Making directory {error_dir}")
             error_dir.mkdir(exist_ok=True, parents=True)
         else:
@@ -221,7 +221,7 @@ class JobScheduler:
                     f" Terminating signal: {status_info.info.terminating_signal}."
                 )
 
-            elif not status_info.output_path.exists():
+            elif not status_info.output_path.is_file():
                 status_info.final_state = "NO_OUTPUT"
                 logging.error(
                     f"drmaa job {status_info.job.id} with slice parameters {status_info.slice_param} has not created"

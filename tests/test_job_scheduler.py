@@ -35,7 +35,7 @@ class TestJobScheduler(unittest.TestCase):
             runner_script_args = ["--input-path", str(input_path)]
             js._create_template(Path("some_script.py"), slice(0, 1, 2), 1, memory="4G", cores=6,
                                 jobscript_args=runner_script_args, job_name="create_template_test")
-            cluster_output_dir_exists = os.path.exists(cluster_output_dir)
+            cluster_output_dir_exists = cluster_output_dir.is_dir()
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
     def test_job_scheduler_runs(self) -> None:
@@ -58,7 +58,7 @@ class TestJobScheduler(unittest.TestCase):
                 with open(output_file, "r") as f:
                     file_content = f.read()
 
-                self.assertTrue(os.path.exists(output_file), msg=f"Output file {output_file} was not created\n")
+                self.assertTrue(output_file.is_file(), msg=f"Output file {output_file} was not created\n")
                 self.assertEqual(expected_nums, file_content, msg=f"Output file {output_file} content was incorrect\n")
 
     def test_old_output_timestamps(self) -> None:

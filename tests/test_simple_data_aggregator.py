@@ -24,7 +24,7 @@ class TestDataAggregator(unittest.TestCase):
     def test_aggregate_data(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
-            if not cluster_output_dir.exists():
+            if not cluster_output_dir.is_dir():
                 cluster_output_dir.mkdir(exist_ok=True, parents=True)
             sliced_data_files = setup_aggregator_data_files(cluster_output_dir)
             written_data = []
