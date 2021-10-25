@@ -1,51 +1,43 @@
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
-from job_scheduler import JobScheduler
-
-
-class SlicerInterface:
-
-    def slice(self, input_data_file: Path, number_jobs: int, stop: int = None) -> List[slice]:
-        """Takes an input data file and returns a list of slice parameters."""
-        raise NotImplementedError
-
-
-class AggregatorInterface:
-
-    def aggregate(self, total_slices: int, aggregation_output_dir: Path, output_data_files: List[Path]) -> Path:
-        """Aggregates data from multiple output files into one"""
-        raise NotImplementedError
+from ParProcCo.aggregator_interface import AggregatorInterface
+from ParProcCo.job_scheduler import JobScheduler
+from ParProcCo.slicer_interface import SlicerInterface
+from ParProcCo.utils import check_location, get_absolute_path
 
 
 class JobController:
 
-    def __init__(self, working_directory: str, cluster_output_dir: Path, project: str, queue: str, cpus: int = 16,
-                 timeout: timedelta = timedelta(hours=2)):
+    def __init__(self, cluster_output_dir_name: str, project: str, queue: str, timeout: timedelta = timedelta(hours=2)):
         """JobController is used to coordinate cluster job submissions with JobScheduler"""
 
-        self.cpus = cpus
-        self.cluster_output_dir = Path(cluster_output_dir)
+        self.working_directory: Path = check_location(os.getcwd())
+
+        self.cluster_output_dir: Path = self.working_directory / cluster_output_dir_name
         self.data_aggregator: AggregatorInterface
         self.data_slicer: SlicerInterface
         self.project = project
         self.queue = queue
-        self.scheduler: JobScheduler = None
+        self.scheduler: JobScheduler
         self.timeout = timeout
-        self.working_directory = Path(working_directory)
 
-    def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, input_path: Path,
-            number_jobs: int, processing_script: Path) -> Path:
+    def run(self, data_slicer: SlicerInterface, data_aggregator: AggregatorInterface, number_jobs: int,
+            processing_script: Path, memory: str = "4G", cores: int = 6, jobscript_args: Optional[List] = None,
+            job_name: str = "ParProcCo") -> Path:
         self.data_slicer = data_slicer
         self.data_aggregator = data_aggregator
-        slice_params = self.data_slicer.slice(input_path, number_jobs)
-
+        processing_script = check_location(get_absolute_path(processing_script))
+        slice_params = self.data_slicer.slice(number_jobs)
+        if jobscript_args is None:
+            jobscript_args = []
         self.scheduler = JobScheduler(self.working_directory, self.cluster_output_dir, self.project, self.queue,
-                                      self.cpus, self.timeout)
-        success = self.scheduler.run(processing_script, input_path, slice_params)
+                                      self.timeout)
+        success = self.scheduler.run(processing_script, slice_params, memory, cores, jobscript_args, job_name)
         if not success:
             self.scheduler.rerun_killed_jobs(processing_script)
         aggregated_file_path = self.aggregate_data(number_jobs)

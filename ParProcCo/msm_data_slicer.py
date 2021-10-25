@@ -5,7 +5,7 @@ from typing import List, Optional
 from ParProcCo.slicer_interface import SlicerInterface
 
 
-class SimpleDataSlicer(SlicerInterface):
+class MSMDataSlicer(SlicerInterface):
 
     def __init__(self):
         pass

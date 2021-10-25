@@ -6,83 +6,14 @@ import os
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
-from parameterized import parameterized
 from tempfile import TemporaryDirectory
-from typing import List, Tuple
 
 import drmaa2 as drmaa2
-from job_scheduler import JobScheduler
+from parameterized import parameterized
 
-
-def setup_data_files(working_directory: str, cluster_output_dir: Path) -> Tuple[Path, List[Path], List[str],
-                                                                                List[slice]]:
-    file_name = "test_raw_data.txt"
-    input_file_path = Path(working_directory) / file_name
-    with open(input_file_path, "w") as f:
-        f.write("0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n")
-        slices = []
-    for i in range(4):
-        slices.append(slice(i, 8, 4))
-
-    output_file_paths = [Path(cluster_output_dir) / f"out_{input_file_path.stem}_{i}.txt" for i in range(4)]
-    output_nums = ["0\n8\n", "2\n10\n", "4\n12\n", "6\n14\n"]
-    return input_file_path, output_file_paths, output_nums, slices
-
-
-def setup_jobscript(working_directory: str) -> Path:
-    jobscript = Path(working_directory) / "test_script.py"
-    with open(jobscript, "x") as f:
-        jobscript_lines = """
-#!/usr/bin/env python3
-
-import argparse
-
-
-def setup_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", help="str: path to input file", type=str)
-    parser.add_argument("--output_path", help="str: path to output file", type=str)
-    parser.add_argument("-I", help="str: slice selection of images per input file (as start:stop:step)")
-    return parser
-
-
-def check_args(args):
-    empty_fields = [k for k, v in vars(args).items() if v is None]
-    if len(empty_fields) > 0:
-        raise ValueError(f"Missing arguments: {empty_fields}")
-
-
-def write_lines(input_path, output_path, images):
-    start, stop, step = images.split(":")
-    start = int(start)
-    stop = int(stop)
-    step = int(step)
-    with open(input_path, "r") as in_f:
-        for i, line in enumerate(in_f):
-            if i >= stop:
-                break
-
-            elif i >= start and ((i - start) % step == 0):
-                doubled = int(line.strip("\\n")) * 2
-                doubled_str = f"{doubled}\\n"
-                with open(output_path, "a+") as out_f:
-                    out_f.write(doubled_str)
-
-
-if __name__ == '__main__':
-    '''
-    $ python jobscript.py --input_path input_path --output_path output_path -I slice_param
-    '''
-    parser = setup_parser()
-    args = parser.parse_args()
-    check_args(args)
-
-    write_lines(args.input_path, args.output_path, args.I)
-"""
-        jobscript_lines = jobscript_lines.lstrip()
-        f.write(jobscript_lines)
-    os.chmod(jobscript, 0o777)
-    return jobscript
+from ParProcCo.job_scheduler import JobScheduler
+from ParProcCo.utils import slice_to_string
+from tests.utils import setup_data_files, setup_jobscript, setup_runner_script
 
 
 class TestJobScheduler(unittest.TestCase):
@@ -98,11 +29,13 @@ class TestJobScheduler(unittest.TestCase):
 
     def test_create_template_with_cluster_output_dir(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
-            input_paths = Path('path/to/file.extension')
-            cluster_output_dir = os.path.join(working_directory, 'cluster_output_dir')
+            input_path = Path('path/to/file.extension')
+            cluster_output_dir = Path(working_directory) / 'cluster_output_dir'
             js = JobScheduler(working_directory, cluster_output_dir, project="b24", queue="medium.q")
-            js._create_template(input_paths, "some_script.py", slice(0, 1, 2), 1)
-            cluster_output_dir_exists = os.path.exists(cluster_output_dir)
+            runner_script_args = ["--input-path", str(input_path)]
+            js._create_template(Path("some_script.py"), slice(0, 1, 2), 1, memory="4G", cores=6,
+                                jobscript_args=runner_script_args, job_name="create_template_test")
+            cluster_output_dir_exists = cluster_output_dir.is_dir()
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
     def test_job_scheduler_runs(self) -> None:
@@ -111,11 +44,13 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             input_path, output_paths, out_nums, slices = setup_data_files(working_directory, cluster_output_dir)
+            runner_script = setup_runner_script(working_directory)
             jobscript = setup_jobscript(working_directory)
+            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            js.run(jobscript, input_path, slices)
+            js.run(runner_script, slices, jobscript_args=runner_script_args)
 
             # check output files
             for output_file, expected_nums in zip(output_paths, out_nums):
@@ -123,27 +58,30 @@ class TestJobScheduler(unittest.TestCase):
                 with open(output_file, "r") as f:
                     file_content = f.read()
 
-                self.assertTrue(os.path.exists(output_file), msg=f"Output file {output_file} was not created\n")
+                self.assertTrue(output_file.is_file(), msg=f"Output file {output_file} was not created\n")
                 self.assertEqual(expected_nums, file_content, msg=f"Output file {output_file} content was incorrect\n")
 
     def test_old_output_timestamps(self) -> None:
         # create directory for test files
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
+            runner_script = setup_runner_script(working_directory)
             jobscript = setup_jobscript(working_directory)
 
-            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            input_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
             js.job_history[js.batch_number] = {}
-            js.job_completion_status = {f"{s.start}:{s.stop}:{s.step}": False for s in slices}
-            js.check_jobscript(jobscript)
+            js.job_completion_status = {slice_to_string(s): False for s in slices}
+            js.check_jobscript(runner_script)
             js.status_infos = []
 
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js._run_jobs(session, jobscript, input_file_path, slices)
+            js._run_jobs(session, runner_script, slices, memory="4G", cores=6, jobscript_args=runner_script_args,
+                         job_name="old_output_test")
             js._wait_for_jobs(session)
             js.start_time = datetime.now()
             js._report_job_info()
@@ -214,15 +152,18 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             jobscript = setup_jobscript(working_directory)
+            runner_script = setup_runner_script(working_directory)
+
             with open(jobscript, "a+") as f:
                 f.write("import time\ntime.sleep(5)\n")
 
-            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            input_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
 
             # run jobs
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q",
                               timeout=timedelta(seconds=1))
-            js.run(jobscript, input_file_path, slices)
+            js.run(runner_script, slices, jobscript_args=runner_script_args)
             jh = js.job_history
             self.assertEqual(len(jh), 1, f"There should be one batch of jobs; job_history: {jh}\n")
             returned_jobs = jh[0]
@@ -233,27 +174,29 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertEqual(returned_jobs[job_id].info.job_state, "FAILED")
 
     @parameterized.expand([
-        ("bad_name", "bad_jobscript_name.sh", False, None, FileNotFoundError, "does not exist"),
-        ("insufficient_permissions", "test_bad_permissions.sh", True, 0o666, PermissionError,
+        ("bad_name", "bad_jobscript_name", False, None, FileNotFoundError, "does not exist"),
+        ("insufficient_permissions", "test_bad_permissions", True, 0o666, PermissionError,
          "must be readable and executable by user"),
-        ("cannot_be_opened", "test_bad_read_permissions.sh", True, 0o333, PermissionError,
+        ("cannot_be_opened", "test_bad_read_permissions", True, 0o333, PermissionError,
          "must be readable and executable by user")
     ])
-    def test_jobscript(self, name, js_name, open_js, permissions, error_name, error_msg) -> None:
+    def test_script(self, name, rs_name, open_rs, permissions, error_name, error_msg) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
-            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
-            jobscript = Path(working_directory) / js_name
+            input_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            jobscript = Path(working_directory) / "test_jobscript"
+            runner_script = Path(working_directory) / rs_name
+            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
 
-            if open_js:
-                f = open(jobscript, "x")
+            if open_rs:
+                f = open(runner_script, "x")
                 f.close()
-                os.chmod(jobscript, permissions)
+                os.chmod(runner_script, permissions)
 
             with self.assertRaises(error_name) as context:
-                js.run(jobscript, input_file_path, slices)
+                js.run(runner_script, slices, jobscript_args=runner_script_args)
 
             self.assertTrue(error_msg in str(context.exception))
 
@@ -263,10 +206,12 @@ class TestJobScheduler(unittest.TestCase):
 
             js = JobScheduler(working_directory, cluster_output_dir, "b24", "medium.q")
 
-            input_file_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
+            input_path, _, _, slices = setup_data_files(working_directory, cluster_output_dir)
             jobscript = setup_jobscript(working_directory)
+            runner_script = setup_runner_script(working_directory)
+            runner_script_args = [str(jobscript), "--input-path", str(input_path)]
 
-            js.run(jobscript, input_file_path, slices)
+            js.run(runner_script, slices, jobscript_args=runner_script_args)
 
     def test_get_output_paths(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
