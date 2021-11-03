@@ -106,7 +106,10 @@ class TestJobScheduler(unittest.TestCase):
             # _run_and_monitor
             js.jobscript = check_jobscript_is_readable(js.jobscript)
             session = drmaa2.JobSession()  # Automatically destroyed when it is out of scope
-            js._run_jobs(session, processing_mode, job_indices, memory="4G", cores=6, job_name="old_output_test")
+            js.memory="4G"
+            js.cores=6
+            js.job_name="old_output_test"
+            js._run_jobs(session, processing_mode, job_indices)
             js._wait_for_jobs(session)
             js.start_time = datetime.now()
             js._report_job_info()

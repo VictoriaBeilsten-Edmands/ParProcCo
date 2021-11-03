@@ -60,7 +60,7 @@ class JobController:
                                                      job_name)
 
         if not sliced_jobs_success:
-            sliced_jobs_success = self.job_scheduler.rerun_killed_jobs(processing_mode, memory, cores, job_name)
+            sliced_jobs_success = self.job_scheduler.rerun_killed_jobs(processing_mode)
 
         return sliced_jobs_success
 
@@ -80,5 +80,4 @@ class JobController:
                                                              aggregation_args, job_name)
 
         if not aggregation_success:
-            self.aggregation_scheduler.rerun_killed_jobs(aggregating_mode, memory, cores, job_name,
-                                                         allow_all_failed=True)
+            self.aggregation_scheduler.rerun_killed_jobs(aggregating_mode, allow_all_failed=True)
