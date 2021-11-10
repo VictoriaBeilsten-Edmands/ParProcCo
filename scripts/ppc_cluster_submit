@@ -51,6 +51,11 @@ def run_ppc(args: argparse.Namespace, script_args: List) -> None:
     if args.jobs == 1:
         wrapper = PassThruWrapper()
     elif args.jobs > 1:
+        from ParProcCo.utils import get_allowed_programs
+        allowed, cfg = get_allowed_programs()
+        if program not in allowed:
+            raise ValueError(f'{program} not on allowed list in {cfg}')
+
         import importlib
         try:
             wrapper_module = importlib.import_module(f'{program}_wrapper')

@@ -54,3 +54,27 @@ def slice_to_string(s: Optional[slice]) -> str:
     stop = '' if s.stop is None else s.stop
     step = s.step
     return f"{start}:{stop}:{step}"
+
+PPC_YAML='par_proc_co.yaml'
+def get_allowed_programs():
+    '''
+    Get set of allowed program names from par_proc_co.yaml
+    
+    allowed_programs:
+        - rs_map
+        - blah2
+        - blah2
+    '''
+    cfg = find_cfg_file(PPC_YAML)
+    import yaml
+    d = yaml.safe_load(cfg)
+    return set(d['allowed_programs'])
+
+def find_cfg_file(name):
+    gg_parent = Path(os.path.realpath(__file__)).parent.parent.parent
+    places = (Path.home(), Path('/etc'), gg_parent)
+    for p in places:
+        cp = p / name
+        if cp.is_file():
+            return cp, p
+    raise ValueError('Cannot find {} in {}'.format(name, places))
