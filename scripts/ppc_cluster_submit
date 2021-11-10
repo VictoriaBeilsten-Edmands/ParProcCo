@@ -9,7 +9,6 @@ import os
 from typing import List
 
 from ParProcCo.job_controller import JobController
-from ParProcCo.msm_wrapper import MSMWrapper
 from ParProcCo.passthru_wrapper import PassThruWrapper
 
 def create_parser():
@@ -52,10 +51,15 @@ def run_ppc(args: argparse.Namespace, script_args: List) -> None:
     if args.jobs == 1:
         wrapper = PassThruWrapper()
     elif args.jobs > 1:
-        if program =='rs_map':
-            wrapper = MSMWrapper()
-        else:
-            raise ValueError(f'Program submitted {program} not supported for more than one job')
+        import importlib
+        try:
+            wrapper_module = importlib.import_module(f'{program}_wrapper')
+        except Exception:
+            raise ValueError(f'Cannot import {program}_wrapper as a Python module')
+        try:
+            wrapper = wrapper_module.Wrapper()
+        except Exception:
+            raise ValueError(f'Cannot create Wrapper from {program}_wrapper module')
     else:
         raise ValueError(f'Number of jobs must be one or more, given {args.jobs}')
     wrapper.set_cores(args.cores)
