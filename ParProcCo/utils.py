@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 
 def check_jobscript_is_readable(jobscript: Path) -> Path:
@@ -56,7 +56,7 @@ def slice_to_string(s: Optional[slice]) -> str:
     return f"{start}:{stop}:{step}"
 
 PPC_YAML='par_proc_co.yaml'
-def get_allowed_programs():
+def get_allowed_programs() -> Tuple[set[str], Path]:
     '''
     Get set of allowed program names from par_proc_co.yaml
     
@@ -68,13 +68,19 @@ def get_allowed_programs():
     cfg = find_cfg_file(PPC_YAML)
     import yaml
     d = yaml.safe_load(cfg)
-    return set(d['allowed_programs'])
+    return set(d['allowed_programs']), cfg
 
-def find_cfg_file(name):
+def find_cfg_file(name: str) -> Path:
+    '''
+    '''
+    cp = Path.home() / ("." + name)
+    if cp.is_file():
+        return cp
+    
     gg_parent = Path(os.path.realpath(__file__)).parent.parent.parent
-    places = (Path.home(), Path('/etc'), gg_parent)
+    places = (gg_parent, Path(os.getenv('CONDA_PREFIX', '')) / 'etc', Path('/etc'))
     for p in places:
         cp = p / name
         if cp.is_file():
-            return cp, p
+            return cp
     raise ValueError('Cannot find {} in {}'.format(name, places))
