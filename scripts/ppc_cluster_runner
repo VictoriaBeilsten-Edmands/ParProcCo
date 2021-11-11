@@ -3,8 +3,11 @@ if [ -z $MODULESHOME ]; then
   . /etc/profile.d/modules.sh
 fi
 
-module load python/3.9
-module load msmapper/1.4
+if [ $PPC_MODULES ]; then
+  for m in ${PPC_MODULES//:/ }; do
+     module load $m
+  done
+fi
 
 if [ $TEST_PPC_DIR ]; then
   export PATH=$TEST_PPC_DIR/scripts:$PATH
