@@ -14,8 +14,13 @@ class TestDataSlicer(unittest.TestCase):
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
         current_user = getpass.getuser()
-        tmp_dir = f"/dls/tmp/{current_user}/"
-        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        print(f"Current user is {current_user}")
+        print(f"Current user type is {type(current_user)}")
+        if current_user == "runner":
+            tmp_dir = "test_dir"
+        else:
+            tmp_dir = f"/dls/tmp/{current_user}"
+        self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():
             logging.debug(f"Making directory {self.base_dir}")
