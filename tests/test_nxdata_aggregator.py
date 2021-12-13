@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import getpass
 import logging
+import pytest
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,14 +14,18 @@ from parameterized import parameterized
 from ParProcCo.nxdata_aggregator import NXdataAggregator
 from ParProcCo.utils import decode_to_string
 
-
 class TestNXdataAggregator(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
         current_user = getpass.getuser()
-        tmp_dir = f"/dls/tmp/{current_user}/"
-        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        if current_user == "runner":
+            tmp_dir = "test_dir"
+            self.workflow = False
+        else:
+            tmp_dir = f"/dls/tmp/{current_user}"
+            self.workflow = True
+        self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():
             logging.debug(f"Making directory {self.base_dir}")
@@ -50,6 +55,7 @@ class TestNXdataAggregator(unittest.TestCase):
         name = decode_to_string(name)
         self.assertEqual(name, "name")
 
+    @pytest.mark.skipif(self.workflow, reason="running GitHub workflow")
     def test_renormalise(self) -> None:
         output_file_paths = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
                              Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
@@ -61,6 +67,7 @@ class TestNXdataAggregator(unittest.TestCase):
         np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
+    @pytest.mark.skipif(self.workflow, reason="running GitHub workflow")
     def test_initialise_arrays_applied_data(self) -> None:
         aggregator = NXdataAggregator()
         aggregator.data_dimensions = 3
@@ -184,6 +191,7 @@ class TestNXdataAggregator(unittest.TestCase):
             else:
                 self.assertEqual(aggregator.accumulator_aux_signals, [])
 
+    @pytest.mark.skipif(self.workflow, reason="running GitHub workflow")
     def test_get_nxdata_applied_data(self) -> None:
         output_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
                              Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
@@ -302,7 +310,6 @@ class TestNXdataAggregator(unittest.TestCase):
         ("no_axes", "volume", ["weight"], True, [], None),
         ("no_signal_or_data", None, ["weight"], True, [], KeyError),
         ("other_signal", "other", ["weight"], True, [], KeyError)
-
     ])
     def test_get_default_signals_and_axes(
             self, name, signal, aux_signals, renormalisation, non_weight_signals, error_name) -> None:
@@ -547,6 +554,7 @@ class TestNXdataAggregator(unittest.TestCase):
                     ]
                 np.testing.assert_allclose(aux_signal, np.array(signal).reshape(3, 3, 5), rtol=1e-14)
 
+    @pytest.mark.skipif(self.workflow, reason="running GitHub workflow")
     def test_accumulate_volumes_applied_data(self) -> None:
         aggregator = NXdataAggregator()
         aggregator.data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
@@ -578,6 +586,7 @@ class TestNXdataAggregator(unittest.TestCase):
         np.testing.assert_allclose(aggregator.accumulator_volume, volumes_array, rtol=1e-12)
         np.testing.assert_allclose(aggregator.accumulator_weights, weights_array, rtol=2.1e-14)
 
+    @pytest.mark.skipif(self.workflow, reason="running GitHub workflow")
     def test_write_aggregation_file(self) -> None:
         sliced_data_files = [Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfa.nxs"),
                              Path("/dls/science/groups/das/ExampleData/i07/i07-394487-applied-halfb.nxs")]
