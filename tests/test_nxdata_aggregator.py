@@ -14,6 +14,8 @@ from parameterized import parameterized
 from ParProcCo.nxdata_aggregator import NXdataAggregator
 from ParProcCo.utils import decode_to_string
 
+
+current_user = getpass.getuser()
 if current_user == "runner":
     tmp_dir = "test_dir"
     workflow = False
@@ -25,7 +27,6 @@ class TestNXdataAggregator(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        current_user = getpass.getuser()
 
         self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
