@@ -3,23 +3,20 @@ from __future__ import annotations
 import getpass
 import logging
 import unittest
+import pytest
 from pathlib import Path
 
 from parameterized import parameterized
 from ParProcCo.simple_data_slicer import SimpleDataSlicer
+from tests.utils import get_tmp_dir_and_workflow
+
+tmp_dir, workflow = get_tmp_dir_and_workflow()
 
 
 class TestDataSlicer(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        current_user = getpass.getuser()
-        print(f"Current user is {current_user}")
-        print(f"Current user type is {type(current_user)}")
-        if current_user == "runner":
-            tmp_dir = "test_dir"
-        else:
-            tmp_dir = f"/dls/tmp/{current_user}"
         self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():

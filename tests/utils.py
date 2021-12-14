@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import drmaa2
+import getpass
 import os
 from pathlib import Path
 from typing import List, Tuple
@@ -13,6 +15,18 @@ else:
     CLUSTER_PROJ='b24'
     CLUSTER_QUEUE='medium.q'
     CLUSTER_RESOURCES={"cpu_model": "intel-xeon"}
+
+def get_tmp_dir_and_workflow() -> Tuple(str, bool):
+    cluster_unavailable = False
+    try:
+        drmaa2.get_drmaa_version()
+    except Exception:
+        cluster_unavailable = True
+    current_user = getpass.getuser()
+    if current_user == "runner":
+        return "test_dir", cluster_unavailable
+    else:
+        return f"/dls/tmp/{current_user}", cluster_unavailable
 
 def setup_aggregator_data_files(working_directory: Path) -> List[Path]:
     # create test files

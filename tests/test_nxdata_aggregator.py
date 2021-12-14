@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import getpass
 import logging
 import pytest
 import unittest
@@ -13,21 +12,15 @@ from parameterized import parameterized
 
 from ParProcCo.nxdata_aggregator import NXdataAggregator
 from ParProcCo.utils import decode_to_string
+from tests.utils import get_tmp_dir_and_workflow
 
+tmp_dir, workflow = get_tmp_dir_and_workflow()
 
-current_user = getpass.getuser()
-if current_user == "runner":
-    tmp_dir = "test_dir"
-    workflow = False
-else:
-    tmp_dir = f"/dls/tmp/{current_user}"
-    workflow = True
 
 class TestNXdataAggregator(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-
         self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():

@@ -3,6 +3,7 @@ from __future__ import annotations
 import getpass
 import logging
 import os
+import pytest
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,9 +15,13 @@ from parameterized import parameterized
 from example.simple_processing_mode import SimpleProcessingMode
 from ParProcCo.job_scheduler import JobScheduler, StatusInfo
 from ParProcCo.utils import check_jobscript_is_readable
-from tests.utils import setup_data_files, setup_jobscript, setup_runner_script
+from tests.utils import get_tmp_dir_and_workflow, setup_data_files, setup_jobscript, setup_runner_script
 
 from .utils import CLUSTER_PROJ, CLUSTER_QUEUE, CLUSTER_RESOURCES
+
+
+tmp_dir, workflow = get_tmp_dir_and_workflow()
+
 
 def create_js(work_dir, out_dir, project=CLUSTER_PROJ, queue=CLUSTER_QUEUE, cluster_resources=CLUSTER_RESOURCES,
               timeout=timedelta(hours=2)):
@@ -26,9 +31,7 @@ class TestJobScheduler(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        current_user = getpass.getuser()
-        tmp_dir = f"/dls/tmp/{current_user}/"
-        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():
             logging.info(f"Making directory {self.base_dir}")
@@ -54,6 +57,7 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir_exists = cluster_output_dir.is_dir()
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     def test_job_scheduler_runs(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -78,6 +82,7 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertTrue(output_file.is_file(), msg=f"Output file {output_file} was not created\n")
                 self.assertEqual(expected_nums, file_content, msg=f"Output file {output_file} content was incorrect\n")
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     def test_old_output_timestamps(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -130,6 +135,7 @@ class TestJobScheduler(unittest.TestCase):
             self.assertEqual(len(job_stats), 4,
                              msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     def test_get_all_queues(self) -> None:
         with os.popen('qconf -sql') as q_proc:
             q_name_list = q_proc.read().split()
@@ -140,6 +146,7 @@ class TestJobScheduler(unittest.TestCase):
             q_name = qi.name
             self.assertTrue(q_name in q_name_list)
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_none", None, "project must be non-empty string"),
         ("is_empty", "", "project must be non-empty string"),
@@ -159,6 +166,7 @@ class TestJobScheduler(unittest.TestCase):
                 create_js(working_directory, cluster_output_dir, project=project)
             self.assertTrue(error_msg in str(context.exception))
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_lowercase", CLUSTER_QUEUE),
         ("is_uppercase", CLUSTER_QUEUE.upper())
@@ -170,6 +178,7 @@ class TestJobScheduler(unittest.TestCase):
             js = create_js(working_directory, cluster_output_dir, queue=queue)
             self.assertEqual(js.queue, CLUSTER_QUEUE)
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_none", None, "queue must be non-empty string"),
         ("is_empty", "", "queue must be non-empty string"),
@@ -183,6 +192,7 @@ class TestJobScheduler(unittest.TestCase):
                 create_js(working_directory, cluster_output_dir, queue=queue)
             self.assertTrue(error_msg in str(context.exception))
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     def test_job_times_out(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -220,6 +230,7 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertEqual(returned_jobs[job_id].info.terminating_signal, "SIGKILL")
                 self.assertEqual(returned_jobs[job_id].info.job_state, "FAILED")
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     @parameterized.expand([
         ("bad_name", "bad_jobscript_name", False, None, FileNotFoundError, "does not exist"),
         ("insufficient_permissions", "test_bad_permissions", True, 0o666, PermissionError,
@@ -327,6 +338,7 @@ class TestJobScheduler(unittest.TestCase):
             killed_jobs = js.filter_killed_jobs(failed_jobs)
             self.assertEqual(killed_jobs, result)
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     def test_resubmit_jobs(self):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -360,6 +372,7 @@ class TestJobScheduler(unittest.TestCase):
             for output in resubmitted_output_paths:
                 self.assertTrue(output.is_file())
 
+    @pytest.mark.skipif(workflow, reason="running GitHub workflow")
     @parameterized.expand([
         ("all_success", False, [
             StatusInfo(None, Path(), i, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(7),

@@ -2,21 +2,23 @@ from __future__ import annotations
 
 import getpass
 import logging
+import pytest
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from example.simple_data_aggregator import SimpleDataAggregator
-from tests.utils import setup_aggregator_data_files
+from tests.utils import get_tmp_dir_and_workflow, setup_aggregator_data_files
+
+
+tmp_dir, workflow = get_tmp_dir_and_workflow()
 
 
 class TestDataAggregator(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        current_user = getpass.getuser()
-        tmp_dir = f"/dls/tmp/{current_user}/"
-        self.base_dir = f"/dls/tmp/{current_user}/tests/"
+        self.base_dir = f"{tmp_dir}/tests/"
         self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
         if not Path(self.base_dir).is_dir():
             logging.debug(f"Making directory {self.base_dir}")
