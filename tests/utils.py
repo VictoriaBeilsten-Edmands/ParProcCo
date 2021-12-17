@@ -25,10 +25,6 @@ def get_gh_testing() -> Tuple(str, bool):
     except Exception:
         return True
 
-    if path.isdir("/dls"):
-        current_user = getpass.getuser()
-        return f"/dls/tmp/{current_user}", gh_testing
-    return "test_dir", gh_testing
 
 def get_tmp_base_dir() -> Path:
     if path.isdir("/dls"):
