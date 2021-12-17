@@ -8,20 +8,12 @@ from pathlib import Path
 
 from parameterized import parameterized
 from ParProcCo.simple_data_slicer import SimpleDataSlicer
-from tests.utils import get_tmp_dir_and_workflow
-
-tmp_dir, workflow = get_tmp_dir_and_workflow()
 
 
 class TestDataSlicer(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        self.base_dir = f"{tmp_dir}/tests/"
-        self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
-        if not Path(self.base_dir).is_dir():
-            logging.debug(f"Making directory {self.base_dir}")
-            Path(self.base_dir).mkdir(exist_ok=True)
 
     @parameterized.expand([
         ("all_ok", [4], {"stop": 8}, None, 4, [slice(0, 8, 4), slice(1, 8, 4), slice(2, 8, 4), slice(3, 8, 4)]),

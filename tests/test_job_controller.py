@@ -11,28 +11,27 @@ from tempfile import TemporaryDirectory
 
 from example.simple_wrapper import SimpleWrapper
 from ParProcCo.job_controller import JobController
-from tests.utils import get_tmp_dir_and_workflow, setup_aggregation_script, setup_data_file, setup_runner_script, setup_jobscript
+from tests.utils import get_gh_testing, get_tmp_base_dir, setup_aggregation_script, setup_data_file, setup_runner_script, setup_jobscript
 
 from tests.test_job_scheduler import CLUSTER_PROJ, CLUSTER_QUEUE, CLUSTER_RESOURCES
 
 
-tmp_dir, workflow = get_tmp_dir_and_workflow()
+global gh_testing
+gh_testing = get_gh_testing()
 
 
-@pytest.mark.skipif(workflow, reason="running GitHub workflow")
+@pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
 class TestJobController(unittest.TestCase):
 
     def setUp(self) -> None:
         logging.getLogger().setLevel(logging.INFO)
-        self.base_dir = f"{tmp_dir}/tests/"
-        self.assertTrue(Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory")
-        if not Path(self.base_dir).is_dir():
-            logging.debug(f"Making directory {self.base_dir}")
-            Path(self.base_dir).mkdir(exist_ok=True)
+        self.base_dir = get_tmp_base_dir()
         self.current_dir = os.getcwd()
 
     def tearDown(self):
         os.chdir(self.current_dir)
+        if gh_testing:
+            os.rmdir(self.base_dir)
 
     def test_all_jobs_fail(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:

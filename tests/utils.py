@@ -3,6 +3,7 @@ from __future__ import annotations
 import drmaa2
 import getpass
 import os
+from os import path
 from pathlib import Path
 from typing import List, Tuple
 
@@ -16,17 +17,32 @@ else:
     CLUSTER_QUEUE='medium.q'
     CLUSTER_RESOURCES={"cpu_model": "intel-xeon"}
 
-def get_tmp_dir_and_workflow() -> Tuple(str, bool):
-    cluster_unavailable = False
+
+def get_gh_testing() -> Tuple(str, bool):
     try:
         drmaa2.get_drmaa_version()
+        return False
     except Exception:
-        cluster_unavailable = True
-    current_user = getpass.getuser()
-    if current_user == "runner":
-        return "test_dir", cluster_unavailable
+        return True
+
+    if path.isdir("/dls"):
+        current_user = getpass.getuser()
+        return f"/dls/tmp/{current_user}", gh_testing
+    return "test_dir", gh_testing
+
+def get_tmp_base_dir() -> Path:
+    if path.isdir("/dls"):
+        current_user = getpass.getuser()
+        tmp_dir = f"/dls/tmp/{current_user}"
     else:
-        return f"/dls/tmp/{current_user}", cluster_unavailable
+        tmp_dir = "test_dir"
+    assert Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory"
+    base_dir = f"{tmp_dir}/tests/"
+    if not Path(base_dir).is_dir():
+        logging.debug(f"Making directory {base_dir}")
+        Path(base_dir).mkdir(exist_ok=True)
+    return base_dir
+
 
 def setup_aggregator_data_files(working_directory: Path) -> List[Path]:
     # create test files
