@@ -1,9 +1,6 @@
 [tool.pytest.ini_options]
 log_cli = true
-addopts = "--strict-markers"
-markers = [
-    "workflowtest: marks tests that will run in GitHub workflow (deselect with '-m \"not workflowtest\"')",
-]
+
 
 [tool.mypy]
 plugins = "numpy.typing.mypy_plugin"
