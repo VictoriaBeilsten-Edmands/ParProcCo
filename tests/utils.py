@@ -35,7 +35,6 @@ def get_tmp_base_dir() -> Path:
     assert Path(tmp_dir).is_dir(), f"{tmp_dir} is not a directory"
     base_dir = f"{tmp_dir}/tests/"
     if not Path(base_dir).is_dir():
-        logging.debug(f"Making directory {base_dir}")
         Path(base_dir).mkdir(exist_ok=True)
     return base_dir
 
