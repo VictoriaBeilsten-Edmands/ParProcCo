@@ -29,7 +29,15 @@ def create_js(work_dir, out_dir, project=CLUSTER_PROJ, queue=CLUSTER_QUEUE, clus
               timeout=timedelta(hours=2)):
     return JobScheduler(work_dir, out_dir, project, queue, cluster_resources, timeout)
 
+def convert_to_statusinfo(job_infos: List[List[None, Path, int, Dict[str, str], int, str]]) -> List[StatusInfo]:
+    print(f"gh_testing is {gh_testing}")
+    if not gh_testing:
+        for job_info in job_infos:
+            job_info[3] = drmaa2.JobInfo(job_info[3])
+            job_info[4] = drmaa2.JobState(job_info[4])
+    return [StatusInfo(*job_info) for job_info in job_infos]
 
+@pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
 class TestJobScheduler(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -40,7 +48,6 @@ class TestJobScheduler(unittest.TestCase):
         if gh_testing:
             os.rmdir(self.base_dir)
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_create_template_with_cluster_output_dir(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             input_path = Path('path/to/file.extension')
@@ -61,7 +68,6 @@ class TestJobScheduler(unittest.TestCase):
             cluster_output_dir_exists = cluster_output_dir.is_dir()
         self.assertTrue(cluster_output_dir_exists, msg="Cluster output directory was not created\n")
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_job_scheduler_runs(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -86,7 +92,6 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertTrue(output_file.is_file(), msg=f"Output file {output_file} was not created\n")
                 self.assertEqual(expected_nums, file_content, msg=f"Output file {output_file} content was incorrect\n")
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_old_output_timestamps(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -139,7 +144,6 @@ class TestJobScheduler(unittest.TestCase):
             self.assertEqual(len(job_stats), 4,
                              msg=f"len(js.job_completion_status) is not 4. js.job_completion_status: {job_stats}\n")
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_get_all_queues(self) -> None:
         with os.popen('qconf -sql') as q_proc:
             q_name_list = q_proc.read().split()
@@ -150,7 +154,6 @@ class TestJobScheduler(unittest.TestCase):
             q_name = qi.name
             self.assertTrue(q_name in q_name_list)
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_none", None, "project must be non-empty string"),
         ("is_empty", "", "project must be non-empty string"),
@@ -170,7 +173,6 @@ class TestJobScheduler(unittest.TestCase):
                 create_js(working_directory, cluster_output_dir, project=project)
             self.assertTrue(error_msg in str(context.exception))
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_lowercase", CLUSTER_QUEUE),
         ("is_uppercase", CLUSTER_QUEUE.upper())
@@ -182,7 +184,6 @@ class TestJobScheduler(unittest.TestCase):
             js = create_js(working_directory, cluster_output_dir, queue=queue)
             self.assertEqual(js.queue, CLUSTER_QUEUE)
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     @parameterized.expand([
         ("is_none", None, "queue must be non-empty string"),
         ("is_empty", "", "queue must be non-empty string"),
@@ -196,7 +197,6 @@ class TestJobScheduler(unittest.TestCase):
                 create_js(working_directory, cluster_output_dir, queue=queue)
             self.assertTrue(error_msg in str(context.exception))
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_job_times_out(self) -> None:
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -234,7 +234,6 @@ class TestJobScheduler(unittest.TestCase):
                 self.assertEqual(returned_jobs[job_id].info.terminating_signal, "SIGKILL")
                 self.assertEqual(returned_jobs[job_id].info.job_state, "FAILED")
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     @parameterized.expand([
         ("bad_name", "bad_jobscript_name", False, None, FileNotFoundError, "does not exist"),
         ("insufficient_permissions", "test_bad_permissions", True, 0o666, PermissionError,
@@ -320,21 +319,12 @@ class TestJobScheduler(unittest.TestCase):
             self.assertEqual(js.timestamp_ok(filepath), run_scheduler_last)
 
     @parameterized.expand([
-        ("all_killed", [
-            StatusInfo(None, Path(f"to/somewhere_{i}"), i, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED") for i in range(2)],
-            [StatusInfo(None, Path(f"to/somewhere_{i}"), i, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                        drmaa2.JobState(8), "FAILED") for i in range(2)]),
-        ("none_killed", [
-            StatusInfo(None, Path("to/somewhere"), i, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(8),
-                       "FAILED") for i in range(2)], []),
-        ("one_killed", [
-            StatusInfo(None, Path("to/somewhere_0"), 0, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED"),
-            StatusInfo(None, Path("to/somewhere_1"), 1, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(8),
-                       "FAILED")],
-            [StatusInfo(None, Path("to/somewhere_0"), 0, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                        drmaa2.JobState(8), "FAILED")])
+        ("all_killed", convert_to_statusinfo([[None, Path(f"to/somewhere_{i}"), i, {"terminating_signal": "SIGKILL"}, 8, "FAILED"] for i in range(2)]),
+                       convert_to_statusinfo([[None, Path(f"to/somewhere_{i}"), i, {"terminating_signal": "SIGKILL"}, 8, "FAILED"] for i in range(2)])),
+        ("none_killed", convert_to_statusinfo([[None, Path("to/somewhere"), i, {"terminating_signal": "0"}, 8, "FAILED"] for i in range(2)]), []),
+        ("one_killed", convert_to_statusinfo([[None, Path("to/somewhere_0"), 0, {"terminating_signal": "SIGKILL"}, 8, "FAILED"],
+                        [None, Path("to/somewhere_1"), 1, {"terminating_signal": "0"}, 8, "FAILED"]]),
+                       convert_to_statusinfo([[None, Path("to/somewhere_0"), 0, {"terminating_signal": "SIGKILL"}, 8, "FAILED"]]))
     ])
     def test_filter_killed_jobs(self, name, failed_jobs, result):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
@@ -344,7 +334,6 @@ class TestJobScheduler(unittest.TestCase):
             killed_jobs = js.filter_killed_jobs(failed_jobs)
             self.assertEqual(killed_jobs, result)
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     def test_resubmit_jobs(self):
         with TemporaryDirectory(prefix='test_dir_', dir=self.base_dir) as working_directory:
             cluster_output_dir = Path(working_directory) / "cluster_output"
@@ -378,37 +367,26 @@ class TestJobScheduler(unittest.TestCase):
             for output in resubmitted_output_paths:
                 self.assertTrue(output.is_file())
 
-    @pytest.mark.skipif(gh_testing, reason="running GitHub workflow")
     @parameterized.expand([
-        ("all_success", False, [
-            StatusInfo(None, Path(), i, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(7),
-                       "DONE") for i in range(4)], {str(i): True for i in range(4)}, False, None, True, False),
-        ("all_failed_do_not_allow", False, [
-            StatusInfo(None, Path(), i, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED") for i in range(4)], {str(i): False for i in range(4)},
-            False, None, False, True),
-        ("all_failed_do_allow", True, [
-            StatusInfo(None, Path(), i, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED") for i in range(4)],
-            {str(i): False for i in range(4)}, True, [0, 1, 2, 3], True, False),
-        ("some_failed_do_allow", True, [
-            StatusInfo(None, Path(), 0, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED"),
-            StatusInfo(None, Path(), 1, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(7),
-                       "DONE"),
-            StatusInfo(None, Path(), 2, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED"),
-            StatusInfo(None, Path(), 3, drmaa2.JobInfo({"terminating_signal": "0"}), drmaa2.JobState(7),
-                       "DONE")], {"0": False, "1": True, "2": False, "3": True}, True, [0, 2], True, False),
-        ("some_failed_do_not_allow", False, [
-            StatusInfo(None, Path(), 0, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED"),
-            StatusInfo(None, Path(), 1, drmaa2.JobInfo({"terminating_signal": "0"}),
-                       drmaa2.JobState(7), "DONE"),
-            StatusInfo(None, Path(), 2, drmaa2.JobInfo({"terminating_signal": "SIGKILL"}),
-                       drmaa2.JobState(8), "FAILED"),
-            StatusInfo(None, Path(), 3, drmaa2.JobInfo({"terminating_signal": "0"}),
-                       drmaa2.JobState(7), "DONE")],
+        ("all_success", False, convert_to_statusinfo([[None, Path(), i, {"terminating_signal": "0"}, 7, "DONE"
+                                                  ] for i in range(4)]), {str(i): True for i in range(4)}, False, None,
+                                                  True, False),
+        ("all_failed_do_not_allow", False, convert_to_statusinfo([[None, Path(), i, {"terminating_signal": "SIGKILL"}, 8,
+                                                              "FAILED"] for i in range(4)]),
+                                                              {str(i): False for i in range(4)}, False, None, False,
+                                                              True),
+        ("all_failed_do_allow", True, convert_to_statusinfo([[None, Path(), i, {"terminating_signal": "SIGKILL"}, 8,
+                                                         "FAILED"] for i in range(4)]),
+                                                         {str(i): False for i in range(4)}, True, [0, 1, 2, 3], True,
+                                                         False),
+        ("some_failed_do_allow", True, convert_to_statusinfo([[None, Path(), 0, {"terminating_signal": "SIGKILL"}, 8,
+                                                          "FAILED"], [None, Path(), 1, {"terminating_signal": "0"}, 7,
+                                                                      "DONE"], [None, Path(), 2, {"terminating_signal": "SIGKILL"}, 8, "FAILED"],
+            [None, Path(), 3, {"terminating_signal": "0"}, 7, "DONE"]]), {"0": False, "1": True, "2": False, "3": True}, True, [0, 2], True, False),
+        ("some_failed_do_not_allow", False, convert_to_statusinfo([[None, Path(), 0, {"terminating_signal": "SIGKILL"}, 8, "FAILED"],
+            [None, Path(), 1, {"terminating_signal": "0"}, 7, "DONE"],
+            [None, Path(), 2, {"terminating_signal": "SIGKILL"}, 8, "FAILED"],
+            [None, Path(), 3, {"terminating_signal": "0"}, 7, "DONE"]]),
             {"0": False, "1": True, "2": False, "3": True}, True, [0, 2], True, False)
     ])
     def test_rerun_killed_jobs(self, name, allow_all_failed, job_history, job_completion_status, runs, indices,
