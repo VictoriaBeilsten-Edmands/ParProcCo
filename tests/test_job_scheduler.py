@@ -29,7 +29,7 @@ def create_js(work_dir, out_dir, project=CLUSTER_PROJ, queue=CLUSTER_QUEUE, clus
               timeout=timedelta(hours=2)):
     return JobScheduler(work_dir, out_dir, project, queue, cluster_resources, timeout)
 
-def convert_to_statusinfo(job_infos: List[List[None, Path, int, Dict[str, str], int, str]]) -> List[StatusInfo]:
+def convert_to_statusinfo(job_infos):
     print(f"gh_testing is {gh_testing}")
     if not gh_testing:
         for job_info in job_infos:
