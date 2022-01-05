@@ -11,9 +11,7 @@ from tempfile import TemporaryDirectory
 
 from example.simple_wrapper import SimpleWrapper
 from ParProcCo.job_controller import JobController
-from tests.utils import get_gh_testing, get_tmp_base_dir, setup_aggregation_script, setup_data_file, setup_runner_script, setup_jobscript
-
-from tests.test_job_scheduler import CLUSTER_PROJ, CLUSTER_QUEUE, CLUSTER_RESOURCES
+from tests.utils import get_gh_testing, get_tmp_base_dir, setup_aggregation_script, setup_data_file, setup_runner_script, setup_jobscript, CLUSTER_PROJ, CLUSTER_QUEUE, CLUSTER_RESOURCES
 
 
 global gh_testing
